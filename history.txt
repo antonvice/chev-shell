@@ -1,0 +1,10 @@
+#V2
+cd
+ls
+eixt
+cargo run
+eixt
+jobs
+sleep 10 &
+jobs
+sleep 60 &\njobs
