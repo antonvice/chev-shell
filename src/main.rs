@@ -1,4 +1,5 @@
 use rustyline::error::ReadlineError;
+use rustyline::{Cmd, KeyEvent, KeyCode, Modifiers, Movement};
 use clap::Parser;
 
 mod engine;
@@ -79,6 +80,10 @@ async fn main() -> anyhow::Result<()> {
     
     let mut rl = rustyline::Editor::<ui::suggestions::ShellHelper, rustyline::history::FileHistory>::new()?;
     rl.set_helper(Some(ui::suggestions::ShellHelper::new()));
+
+    // Key Bindings: Accept hint with Tab or Right Arrow
+    rl.bind_sequence(KeyEvent(KeyCode::Tab, Modifiers::NONE), Cmd::Move(Movement::ForwardChar(1)));
+    rl.bind_sequence(KeyEvent(KeyCode::Right, Modifiers::NONE), Cmd::Move(Movement::ForwardChar(1)));
 
     if rl.load_history("history.txt").is_err() {
         // Silently continue if no history
