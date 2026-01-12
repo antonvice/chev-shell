@@ -7,17 +7,24 @@ use std::convert::TryInto;
 use crate::engine::parser::{parse_pipeline, Pipeline, Redirection};
 use crate::engine::jobs::{JobManager, JobStatus};
 use crate::engine::env::EnvManager;
+use crate::engine::macros::MacroManager;
 use std::sync::{Arc, Mutex};
 use std::os::fd::BorrowedFd;
 
-pub async fn execute_command(input: &str, jobs: &Arc<Mutex<JobManager>>, env_manager: &Arc<Mutex<EnvManager>>) -> Result<()> {
-    let (_, pipeline) = parse_pipeline(input)
+pub async fn execute_command(input: &str, jobs: &Arc<Mutex<JobManager>>, env_manager: &Arc<Mutex<EnvManager>>, macro_manager: &Arc<Mutex<MacroManager>>) -> Result<()> {
+    // 1. Expand Macros first
+    let expanded = {
+        let macros = macro_manager.lock().unwrap();
+        macros.expand_macro(input).unwrap_or_else(|| input.to_string())
+    };
+
+    let (_, pipeline) = parse_pipeline(&expanded)
         .map_err(|e| anyhow!("Parse error: {}", e))?;
 
-    execute_pipeline(pipeline, jobs, env_manager).await
+    execute_pipeline(pipeline, jobs, env_manager, macro_manager).await
 }
 
-async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>>, env_mutex: &Arc<Mutex<EnvManager>>) -> Result<()> {
+async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>>, env_mutex: &Arc<Mutex<EnvManager>>, macro_mutex: &Arc<Mutex<MacroManager>>) -> Result<()> {
     let background = pipeline.background;
     let mut prev_stdout: Option<Stdio> = None;
     let commands_len = pipeline.commands.len();
@@ -179,6 +186,37 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                 "dirs" => {
                     let env = env_mutex.lock().unwrap();
                     println!("{}", env.get_stack().join("  "));
+                    return Ok(());
+                }
+                "macro" => {
+                    let mut macros = macro_mutex.lock().unwrap();
+                    let teal = "\x1b[38;2;110;209;195m";
+                    let reset = "\x1b[0m";
+
+                    match cmd.args.get(1).map(|s| s.as_str()) {
+                        Some("set") => {
+                            if cmd.args.len() >= 4 {
+                                let name = cmd.args[2].clone();
+                                let template = cmd.args[3..].join(" ");
+                                macros.set_macro(name, template)?;
+                                println!("Macro set successfully.");
+                            } else {
+                                println!("Usage: macro set <name> <template>");
+                            }
+                        }
+                        Some("unset") => {
+                            if let Some(name) = cmd.args.get(2) {
+                                macros.unset_macro(name)?;
+                                println!("Macro unset.");
+                            }
+                        }
+                        _ => {
+                            println!("{}🐚 Chev Macros:{}", teal, reset);
+                            for (name, m) in macros.list() {
+                                println!("  {} -> {}", name, m.template);
+                            }
+                        }
+                    }
                     return Ok(());
                 }
                 _ => {}

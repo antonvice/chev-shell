@@ -8,6 +8,7 @@ mod ui;
 use std::sync::{Arc, Mutex};
 use crate::engine::jobs::JobManager;
 use crate::engine::env::EnvManager;
+use crate::engine::macros::MacroManager;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "🐕 Chev Shell - An AI-native shell built in Rust")]
@@ -22,6 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let jobs = Arc::new(Mutex::new(JobManager::new()));
     let env_manager = Arc::new(Mutex::new(EnvManager::new()));
+    let macro_manager = Arc::new(Mutex::new(MacroManager::new()));
 
     // Background task to reap zombie processes
     let jobs_for_reaper = Arc::clone(&jobs);
@@ -51,7 +53,7 @@ async fn main() -> anyhow::Result<()> {
 
     if let Some(cmd) = args.command {
         // Execute a single command and exit
-        if let Err(e) = engine::executor::execute_command(&cmd, &jobs, &env_manager).await {
+        if let Err(e) = engine::executor::execute_command(&cmd, &jobs, &env_manager, &macro_manager).await {
             eprintln!("Chev Error: {}", e);
             std::process::exit(1);
         }
@@ -79,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
     ui::effects::display_parallel_intro(intro_lines).await;
     
     let mut rl = rustyline::Editor::<ui::suggestions::ShellHelper, rustyline::history::FileHistory>::new()?;
-    rl.set_helper(Some(ui::suggestions::ShellHelper::new()));
+    rl.set_helper(Some(ui::suggestions::ShellHelper::new(Arc::clone(&macro_manager))));
 
     // Key Bindings: Accept hint with Tab or Right Arrow
     rl.bind_sequence(KeyEvent(KeyCode::Tab, Modifiers::NONE), Cmd::Move(Movement::ForwardChar(1)));
@@ -113,8 +115,18 @@ async fn main() -> anyhow::Result<()> {
                     helper.trie.add(input);
                 }
 
+                // Handle abbreviations built-in
+                if input.starts_with("abbr ") {
+                    let parts: Vec<&str> = input.split_whitespace().collect();
+                    if parts.len() >= 3 {
+                        macro_manager.lock().unwrap().set_abbreviation(parts[1].to_string(), parts[2..].join(" "));
+                        println!("Abbreviation set.");
+                        continue;
+                    }
+                }
+
                 // Execute via our engine
-                if let Err(e) = engine::executor::execute_command(input, &jobs, &env_manager).await {
+                if let Err(e) = engine::executor::execute_command(input, &jobs, &env_manager, &macro_manager).await {
                     eprintln!("Chev Error: {}", e);
                 }
             }

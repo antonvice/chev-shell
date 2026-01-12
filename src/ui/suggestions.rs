@@ -40,23 +40,42 @@ impl Hint for StringHint {
 
 pub struct ShellHelper {
     pub trie: CommandTrie,
+    pub macro_manager: std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>,
 }
 
 impl ShellHelper {
-    pub fn new() -> Self {
-        Self { trie: CommandTrie::new() }
+    pub fn new(macro_manager: std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>) -> Self {
+        Self { 
+            trie: CommandTrie::new(),
+            macro_manager,
+        }
     }
 }
 
 impl Helper for ShellHelper {}
 
 impl Completer for ShellHelper {
-    type Candidate = String;
+    type Candidate = rustyline::completion::Pair;
+
+    fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+        crate::ui::completion::ChevCompleter::complete(line, pos)
+    }
 }
 
 impl Hinter for ShellHelper {
     type Hint = StringHint;
     fn hint(&self, line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
+        if line.is_empty() { return None; }
+
+        // 1. Check for Abbreviations (Shadow expansion hint)
+        {
+            let macros = self.macro_manager.lock().unwrap();
+            if let Some(expansion) = macros.get_abbreviation(line.trim()) {
+                return Some(StringHint(format!(" ({})", expansion)));
+            }
+        }
+
+        // 2. Fallback to History
         self.trie.suggest(line).map(StringHint)
     }
 }
