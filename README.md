@@ -7,7 +7,7 @@
 <h3 align="center">The AI-Native, Rust-Powered Command Line for the Modern Age</h3>
 
 <p align="center">
-  <strong>Chev Shell</strong> is not just another shell. It's a high-performance, GPU-accelerated co-processor for your terminal that redefines how you interact with your operating system. Built entirely in Rust, it merges the reliability of classic POSIX shells with the intelligence of modern AI.
+  <strong>Chev Shell</strong> is not just another shell. It's a high-performance, AI-augmented co-processor for your terminal that redefines how you interact with your operating system. Built entirely in Rust, it merges the reliability of classic POSIX shells with the intelligence of modern AI.
 </p>
 
 ---
@@ -75,7 +75,7 @@ cargo build --release
   - [ ] Natural language to CLI (e.g., `? find all large logs`)
 
 - [ ] **Phase 3: Visual & UX**
-  - [ ] GPU-accelerated UI rendering components
+  - [ ] Advanced UI rendering components
   - [ ] Interactive file picker (`fselect` / `broot` integration)
   - [ ] Custom theme engine (Catppuccin by default)
 
