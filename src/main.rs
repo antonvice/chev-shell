@@ -2,13 +2,11 @@ use rustyline::error::ReadlineError;
 use rustyline::{Cmd, KeyEvent, KeyCode, Modifiers, Movement};
 use clap::Parser;
 
-mod engine;
-mod ui;
-
 use std::sync::{Arc, Mutex};
-use crate::engine::jobs::JobManager;
-use crate::engine::env::EnvManager;
-use crate::engine::macros::MacroManager;
+use chev_shell::engine::jobs::JobManager;
+use chev_shell::engine::env::EnvManager;
+use chev_shell::engine::macros::MacroManager;
+use chev_shell::{engine, ui};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about = "🐕 Chev Shell - An AI-native shell built in Rust")]
@@ -60,16 +58,45 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let checker = engine::executor::AiChecker::new();
+    let model_name = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());
+    let ollama_running = checker.is_ollama_running().await;
+    let has_model = if ollama_running { checker.has_model(&model_name).await } else { false };
+
     let mut intro_lines = vec!["🐚  Chev Shell v0.1.0-alpha has been activated".to_string()];
+    
+    if !ollama_running || !has_model {
+        let red = "\x1b[31m";
+        let yellow = "\x1b[33m";
+        let reset = "\x1b[0m";
+        let gray = "\x1b[90m";
+
+        intro_lines.push(format!("{}⚠️  AI features disabled{}", red, reset));
+        intro_lines.push("".to_string());
+        intro_lines.push(format!("{}HOW TO ENABLE AI:{}", yellow, reset));
+        
+        if !ollama_running {
+            intro_lines.push(format!("  1. Install Ollama: {}https://ollama.com{}", gray, reset));
+            intro_lines.push(format!("  2. Start the Ollama application."));
+        }
+
+        // Add a check for protoc as it's needed for the local vector DB
+        intro_lines.push(format!("  3. Install {}protobuf{} (required for LanceDB): {}brew install protobuf{}", yellow, reset, gray, reset));
+        
+        if !has_model {
+            intro_lines.push(format!("  4. Run {}ai setup{} to download the model.", yellow, reset));
+        }
+        intro_lines.push("".to_string());
+    }
+
     intro_lines.extend(vec![
-        "".to_string(),
         "WHAT IS CHEV?".to_string(),
         "  Chev (named after my girlfriend) is a next-generation, AI-native shell built in Rust.".to_string(),
         "  It transforms your terminal into a GPU-accelerated co-processor.".to_string(),
         "".to_string(),
         "KEY FEATURES:".to_string(),
         "  ⚡ High-Performance: Built in Rust for zero-latency execution.".to_string(),
-        "  🧠 AI-Native: Integrated with Ollama & Devstral for terminal advice.".to_string(),
+        "  🧠 AI-Native: Integrated with Ollama & qwen2.5-coder:7b for terminal advice.".to_string(),
         "  🐕 Modern Aliases: ls -> eza, cd -> zoxide, grep -> rg, and more.".to_string(),
         "  🎨 Visual UX: GPU-accelerated rendering & advanced prompt states.".to_string(),
         "".to_string(),

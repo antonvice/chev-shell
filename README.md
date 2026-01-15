@@ -28,7 +28,7 @@ Chev transparently "upgrades" your legacy POSIX commands to their modern, multi-
 - *...and [many more](commands.md).*
 
 #### 2. **AI-Native Core**
-Built-in bridge to local LLMs (via Ollama). Chev is designed to explain complex flags, suggest command corrections, and generate one-liners using models like `Devstral`, all while keeping your data local and private.
+Built-in bridge to local LLMs (via Ollama). Chev is designed to explain complex flags, suggest command corrections, and generate one-liners using models like `qwen2.5-coder:7b`, all while keeping your data local and private.
 
 #### 3. **Smart Semantic Navigation**
 The `cd` command is powered by `zoxide` logic. It learns your habits, allowing you to "jump" to frequently used directories without typing full paths (e.g., `cd proj` might take you straight to `~/Documents/work/rust/project-alpha`).

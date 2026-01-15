@@ -13,6 +13,8 @@ pub struct MacroManager {
     macros: HashMap<String, Macro>,
     abbreviations: HashMap<String, String>,
     config_path: std::path::PathBuf,
+    pub last_suggestion: Option<String>,
+    pub last_error: Option<(String, String)>, // (command, stderr)
 }
 
 impl MacroManager {
@@ -24,6 +26,8 @@ impl MacroManager {
             macros: HashMap::new(),
             abbreviations: HashMap::new(),
             config_path: config_path.clone(),
+            last_suggestion: None,
+            last_error: None,
         };
 
         let _ = manager.load();

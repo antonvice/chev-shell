@@ -65,9 +65,19 @@ impl Completer for ShellHelper {
 impl Hinter for ShellHelper {
     type Hint = StringHint;
     fn hint(&self, line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
+        // 1. Check for AI Suggestions (if line is empty or starts a fix)
+        {
+            let macros = self.macro_manager.lock().unwrap();
+            if let Some(suggestion) = &macros.last_suggestion {
+                if line.is_empty() || suggestion.starts_with(line) {
+                    return Some(StringHint(suggestion[line.len()..].to_string()));
+                }
+            }
+        }
+
         if line.is_empty() { return None; }
 
-        // 1. Check for Abbreviations (Shadow expansion hint)
+        // 2. Check for Abbreviations (Shadow expansion hint)
         {
             let macros = self.macro_manager.lock().unwrap();
             if let Some(expansion) = macros.get_abbreviation(line.trim()) {
@@ -75,7 +85,7 @@ impl Hinter for ShellHelper {
             }
         }
 
-        // 2. Fallback to History
+        // 3. Fallback to History
         self.trie.suggest(line).map(StringHint)
     }
 }

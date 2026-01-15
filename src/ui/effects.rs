@@ -2,81 +2,131 @@ use rand::Rng;
 use std::io::{self, Write};
 use std::time::{Duration, Instant};
 
-struct LineState {
-    target: Vec<char>,
-    settle_times: Vec<Duration>,
+enum StringSegment {
+    Ansi(String),
+    Text(Vec<char>),
+}
+
+struct AnsiAwareLine {
     is_secondary: bool,
+    segments: Vec<StringSegment>,
+    total_visible_len: usize,
 }
 
 pub async fn display_parallel_intro(lines: Vec<String>) {
     let mut rng = rand::rng();
     let chars: Vec<char> = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+-=[]{}|;:,.<>?".chars().collect();
     
-    // Primary Color: #6ED1C3 -> RGB(110, 209, 195)
-    // Secondary Color: #5A5A5A -> RGB(90, 90, 90)
     let primary = "\x1b[38;2;110;209;195m";
     let gray = "\x1b[38;5;240m";
     let reset = "\x1b[0m";
 
-    let mut states = Vec::new();
+    let mut aware_lines = Vec::new();
     for line in lines {
         let is_secondary = line.starts_with(" ");
-        let target: Vec<char> = line.chars().collect();
-        let settle_times: Vec<Duration> = (0..target.len())
-            .map(|_| Duration::from_millis(rng.random_range(100..1000)))
+        let mut segments = Vec::new();
+        let mut current_text = Vec::new();
+        let mut i = 0;
+        let line_chars: Vec<char> = line.chars().collect();
+        let mut total_visible_len = 0;
+
+        while i < line_chars.len() {
+            if line_chars[i] == '\x1b' {
+                if !current_text.is_empty() {
+                    segments.push(StringSegment::Text(current_text.clone()));
+                    current_text.clear();
+                }
+                let mut ansi = String::new();
+                ansi.push('\x1b');
+                i += 1;
+                while i < line_chars.len() && !line_chars[i].is_ascii_alphabetic() {
+                    ansi.push(line_chars[i]);
+                    i += 1;
+                }
+                if i < line_chars.len() {
+                    ansi.push(line_chars[i]);
+                    i += 1;
+                }
+                segments.push(StringSegment::Ansi(ansi));
+            } else {
+                current_text.push(line_chars[i]);
+                total_visible_len += 1;
+                i += 1;
+            }
+        }
+        if !current_text.is_empty() {
+            segments.push(StringSegment::Text(current_text));
+        }
+
+        aware_lines.push(AnsiAwareLine {
+            is_secondary,
+            segments,
+            total_visible_len,
+        });
+    }
+
+    let mut settle_times = Vec::new();
+    for line in &aware_lines {
+        let times: Vec<Duration> = (0..line.total_visible_len)
+            .map(|_| Duration::from_millis(rng.random_range(150..800)))
             .collect();
-        states.push(LineState { target, settle_times, is_secondary });
+        settle_times.push(times);
     }
 
     let start_time = Instant::now();
     let mut finished = false;
 
-    // Hide cursor
-    print!("\x1b[?25l");
+    // Hide cursor and use save/restore to prevent ghosting on wrap
+    print!("\x1b[?25l\x1b[s");
     io::stdout().flush().unwrap();
 
     while !finished {
         let elapsed = start_time.elapsed();
         let mut all_settled = true;
+        let mut frame_output = String::new();
 
-        // Move cursor back up for all lines except the first frame
-        // (We'll just print and then use CSI to move up)
-        let mut output = String::new();
+        for (l_idx, line) in aware_lines.iter().enumerate() {
+            let color = if line.is_secondary { gray } else { primary };
+            frame_output.push_str(color);
 
-        for state in &states {
-            let mut line_display = String::new();
-            let color = if state.is_secondary { gray } else { primary };
-            
-            for (i, &target_char) in state.target.iter().enumerate() {
-                if elapsed >= state.settle_times[i] {
-                    line_display.push(target_char);
-                } else {
-                    if target_char.is_whitespace() {
-                        line_display.push(' ');
-                    } else {
-                        let rand_idx = rng.random_range(0..chars.len());
-                        line_display.push(chars[rand_idx]);
+            let mut visible_idx = 0;
+            for segment in &line.segments {
+                match segment {
+                    StringSegment::Ansi(code) => {
+                        frame_output.push_str(code);
                     }
-                    all_settled = false;
+                    StringSegment::Text(chars_vec) => {
+                        for &c in chars_vec {
+                            if elapsed >= settle_times[l_idx][visible_idx] {
+                                frame_output.push(c);
+                            } else {
+                                if c.is_whitespace() {
+                                    frame_output.push(' ');
+                                } else {
+                                    frame_output.push(chars[rng.random_range(0..chars.len())]);
+                                }
+                                all_settled = false;
+                            }
+                            visible_idx += 1;
+                        }
+                    }
                 }
             }
-            output.push_str(&format!("{}{}{}\n", color, line_display, reset));
+            frame_output.push_str(reset);
+            frame_output.push_str("\n");
         }
 
-        // Print everything
-        print!("\r{}", output);
+        // Return to saved start point and clear everything down for a perfect redraw
+        print!("\x1b[u\x1b[J{}", frame_output);
         io::stdout().flush().unwrap();
 
         if all_settled {
             finished = true;
         } else {
-            // Move cursor back up to the start of the block
-            print!("\x1b[{}A", states.len());
             tokio::time::sleep(Duration::from_millis(30)).await;
         }
     }
     
-    // Show cursor again
     print!("\x1b[?25h");
     io::stdout().flush().unwrap();
 }
