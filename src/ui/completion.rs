@@ -5,26 +5,48 @@ use std::path::Path;
 pub struct ChevCompleter;
 
 impl ChevCompleter {
-    pub fn complete(line: &str, pos: usize) -> Result<(usize, Vec<Pair>)> {
+    pub fn complete(line: &str, pos: usize, macro_manager: &std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>) -> Result<(usize, Vec<Pair>)> {
         let (before, _) = line.split_at(pos);
         let parts: Vec<&str> = before.split_whitespace().collect();
-
-        if parts.is_empty() {
-            return Ok((pos, Vec::new()));
-        }
+        
+        // 0. AI Suggestion Candidates
+        let mut all_matches = {
+            let macros = macro_manager.lock().unwrap();
+            let mut matches = Vec::new();
+            if let Some(suggestion) = &macros.last_suggestion {
+                // Suggest if it's an exact start or we haven't typed much yet
+                if (suggestion.starts_with(line) && !line.is_empty()) || (line.is_empty() && suggestion.len() > 0) {
+                    matches.push(Pair {
+                        display: format!("{} ✨ AI Suggestion", suggestion),
+                        replacement: suggestion.clone(),
+                    });
+                }
+            }
+            matches
+        };
 
         // 1. Git Completion
-        if parts[0] == "git" {
-            return Ok(Self::complete_git(parts.get(1).copied(), before, pos));
+        if !parts.is_empty() && parts[0] == "git" {
+            let (start, git_matches) = Self::complete_git(parts.get(1).copied(), before, pos);
+            all_matches.extend(git_matches);
+            return Ok((start, all_matches));
+        }
+
+        if parts.is_empty() {
+            return Ok((pos, all_matches));
         }
 
         // 2. Docker Completion
         if parts[0] == "docker" {
-            return Ok(Self::complete_docker(parts.get(1).copied(), before, pos));
+            let (start, docker_matches) = Self::complete_docker(parts.get(1).copied(), before, pos);
+            all_matches.extend(docker_matches);
+            return Ok((start, all_matches));
         }
 
         // 3. Fallback to File/Path Completion
-        Self::complete_path(before, pos)
+        let (start, path_matches) = Self::complete_path(before, pos)?;
+        all_matches.extend(path_matches);
+        Ok((start, all_matches))
     }
 
     fn complete_git(subcmd: Option<&str>, _full: &str, pos: usize) -> (usize, Vec<Pair>) {

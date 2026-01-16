@@ -58,7 +58,7 @@ impl Completer for ShellHelper {
     type Candidate = rustyline::completion::Pair;
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
-        crate::ui::completion::ChevCompleter::complete(line, pos)
+        crate::ui::completion::ChevCompleter::complete(line, pos, &self.macro_manager)
     }
 }
 

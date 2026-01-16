@@ -24,13 +24,39 @@ pub async fn execute_command(input: &str, jobs: &Arc<Mutex<JobManager>>, env_man
 
     let result = execute_pipeline(pipeline, jobs, env_manager, macro_manager).await;
     
-    if result.is_err() {
+    if let Err(e) = &result {
+        // If the command failed, trigger an AI fix analysis
+        let last_cmd = expanded.clone();
+        let last_err = e.to_string();
+        
         let mut macros = macro_manager.lock().unwrap();
+        // Only set error if not already set by internal capture
         if macros.last_error.is_none() {
-            // If it wasn't captured inside (e.g. spawn failure), capture it here
-            macros.last_error = Some((expanded.clone(), result.as_ref().err().unwrap().to_string()));
+            macros.last_error = Some((last_cmd.clone(), last_err.clone()));
         }
+
+        // Trigger proactive fix
+        let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());
+        let client = crate::ai::OllamaClient::new(model);
+        let macros_for_ai = Arc::clone(macro_manager);
+        
+        tokio::spawn(async move {
+            let prompt = format!(
+                "The user ran: `{}`\nIt failed with this error:\n```\n{}\n```\nProvide a fixed command in JSON format: {{\"fixed_command\": \"...\"}}. Only return the JSON.",
+                last_cmd, last_err
+            );
+            
+            if let Ok(response) = client.generate(prompt, true).await {
+                if let Ok(json) = serde_json::from_str::<serde_json::Value>(&response) {
+                    if let Some(fixed) = json["fixed_command"].as_str() {
+                        let mut m = macros_for_ai.lock().unwrap();
+                        m.last_suggestion = Some(fixed.to_string());
+                    }
+                }
+            }
+        });
     }
+
     result
 }
 
@@ -391,7 +417,7 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
         // Note: Built-ins don't usually pipe well in simple implementations, 
         // but we'll support cd as a special case.
         if original_command == "cd" && commands_len == 1 {
-            return handle_cd(cmd.args.iter().skip(1).map(|s| s.as_str()).collect()).await;
+            return handle_cd(cmd.args.iter().skip(1).map(|s| s.as_str()).collect(), env_mutex).await;
         }
 
         let raw_args: Vec<&str> = cmd.args.iter().skip(1).map(|s| s.as_str()).collect();
@@ -463,16 +489,22 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
         }
 
         if is_last {
-            let mut captured_stderr = String::new();
+            let captured_stderr = Arc::new(Mutex::new(String::new()));
+            let stderr_capture = Arc::clone(&captured_stderr);
+            
+            let mut stderr_task = None;
             if let Some(mut stderr) = child.stderr.take() {
-                use tokio::io::AsyncReadExt;
-                let mut buffer = [0u8; 1024];
-                while let Ok(n) = stderr.read(&mut buffer).await {
-                    if n == 0 { break; }
-                    let s = String::from_utf8_lossy(&buffer[..n]);
-                    captured_stderr.push_str(&s);
-                    eprint!("{}", s); // Still show it to the user
-                }
+                stderr_task = Some(tokio::spawn(async move {
+                    use tokio::io::AsyncReadExt;
+                    let mut buffer = [0u8; 1024];
+                    while let Ok(n) = stderr.read(&mut buffer).await {
+                        if n == 0 { break; }
+                        let s = String::from_utf8_lossy(&buffer[..n]);
+                        let mut cap = stderr_capture.lock().unwrap();
+                        cap.push_str(&s);
+                        eprint!("{}", s);
+                    }
+                }));
             }
 
             let status = if background {
@@ -495,7 +527,6 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             let _ = nix::unistd::tcsetpgrp(stdin, job_pgid);
                         }
                         
-                        // Wait for child using nix to catch Stopped status
                         let wait_res = loop {
                             use nix::sys::wait::{waitpid, WaitStatus, WaitPidFlag};
                             match waitpid(job_pgid, Some(WaitPidFlag::WUNTRACED)) {
@@ -532,17 +563,47 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                 }
             };
 
+            // Wait for stderr task to complete (it should finish shortly after process exits)
+            if let Some(task) = stderr_task {
+                let _ = task.await;
+            }
+
+            let final_stderr = captured_stderr.lock().unwrap().clone();
+
             // Store error context if command failed
             if status.is_err() {
                 let mut macros = macro_mutex.lock().unwrap();
-                macros.last_error = Some((full_cmd_str.clone(), captured_stderr));
+                macros.last_error = Some((full_cmd_str.clone(), final_stderr.clone()));
+                
+                // Proactive AI Fix
+                let cmd_to_fix = full_cmd_str.clone();
+                let err_to_fix = final_stderr.clone();
+                let macros_for_ai = Arc::clone(macro_mutex);
+                
+                tokio::spawn(async move {
+                    let model = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());
+                    let client = crate::ai::OllamaClient::new(model);
+                    let prompt = format!(
+                        "The user ran: `{}`\nIt failed with this error:\n```\n{}\n```\nProvide a fixed command in JSON format: {{\"fixed_command\": \"...\"}}. Only return the JSON.",
+                        cmd_to_fix, err_to_fix
+                    );
+                    
+                    if let Ok(response) = client.generate(prompt, true).await {
+                        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&response) {
+                            if let Some(fixed) = json["fixed_command"].as_str() {
+                                let mut m = macros_for_ai.lock().unwrap();
+                                m.last_suggestion = Some(fixed.to_string());
+                            }
+                        }
+                    }
+                });
             } else {
                 // Clear context on success
                 let mut macros = macro_mutex.lock().unwrap();
                 macros.last_error = None;
                 macros.last_suggestion = None;
 
-                // Semantic history recording (background task)
+                // Semantic history recording
                 if !full_cmd_str.starts_with("ai ") {
                     let cmd_to_record = full_cmd_str.clone();
                     tokio::spawn(async move {
@@ -603,7 +664,7 @@ async fn resolve_command<'a>(command: &'a str, args: Vec<&'a str>) -> Result<(St
     Ok((mapped.to_string(), args))
 }
 
-async fn handle_cd(args: Vec<&str>) -> Result<()> {
+async fn handle_cd(args: Vec<&str>, env_mutex: &Arc<Mutex<EnvManager>>) -> Result<()> {
     let target = args.get(0).map(|&s| s).unwrap_or("~");
     
     // Resolve path (handle ~)
@@ -632,11 +693,18 @@ async fn handle_cd(args: Vec<&str>) -> Result<()> {
     }
 
     // 2. Smart jump via zoxide if target is not a valid path
-    let output = Command::new("zoxide")
-        .arg("query")
-        .arg(target)
-        .output()
-        .await?;
+    let mut zoxide_cmd = Command::new("zoxide");
+    zoxide_cmd.arg("query").arg(target);
+    
+    // Ensure all current env vars are passed to zoxide
+    {
+        let env = env_mutex.lock().unwrap();
+        for (k, v) in env.get_all_vars() {
+            zoxide_cmd.env(k, v);
+        }
+    }
+
+    let output = zoxide_cmd.output().await?;
 
     if output.status.success() {
         let new_path_str = String::from_utf8_lossy(&output.stdout).trim().to_string();

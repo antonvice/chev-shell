@@ -19,6 +19,15 @@ struct Args {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    
+    // Ignore terminal signals in the shell process to prevent it from stopping
+    // when a child process is given control of the terminal.
+    #[cfg(unix)]
+    unsafe {
+        libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+        libc::signal(libc::SIGTTIN, libc::SIG_IGN);
+    }
+
     let jobs = Arc::new(Mutex::new(JobManager::new()));
     let env_manager = Arc::new(Mutex::new(EnvManager::new()));
     let macro_manager = Arc::new(Mutex::new(MacroManager::new()));
@@ -111,8 +120,8 @@ async fn main() -> anyhow::Result<()> {
     rl.set_helper(Some(ui::suggestions::ShellHelper::new(Arc::clone(&macro_manager))));
 
     // Key Bindings: Accept hint with Tab or Right Arrow
-    rl.bind_sequence(KeyEvent(KeyCode::Tab, Modifiers::NONE), Cmd::Move(Movement::ForwardChar(1)));
-    rl.bind_sequence(KeyEvent(KeyCode::Right, Modifiers::NONE), Cmd::Move(Movement::ForwardChar(1)));
+    rl.bind_sequence(KeyEvent(KeyCode::Tab, Modifiers::NONE), Cmd::Complete);
+    rl.bind_sequence(KeyEvent(KeyCode::Right, Modifiers::NONE), Cmd::Move(Movement::EndOfLine));
 
     if rl.load_history("history.txt").is_err() {
         // Silently continue if no history
@@ -163,6 +172,17 @@ async fn main() -> anyhow::Result<()> {
             }
             Err(ReadlineError::Eof) => {
                 println!("Exiting...");
+                // Terminate all active jobs
+                {
+                    let jobs = jobs.lock().unwrap();
+                    for job in jobs.get_jobs() {
+                        #[cfg(unix)]
+                        {
+                            use nix::sys::signal::{kill, Signal};
+                            let _ = kill(job.pgid, Signal::SIGTERM);
+                        }
+                    }
+                }
                 break;
             }
             Err(err) => {
