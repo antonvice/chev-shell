@@ -131,8 +131,23 @@ async fn main() -> anyhow::Result<()> {
     let total_count = tools_to_check.len();
     
     let blue = "\x1b[38;2;67;147;255m";
+    let teal = "\x1b[38;2;110;209;195m";
     let reset = "\x1b[0m";
+    
+    // Detect Semantic Support (OSC 133)
+    let term = std::env::var("TERM_PROGRAM").unwrap_or_default();
+    let semantic_active = match term.as_str() {
+        "Rio" | "WezTerm" | "Ghostty" | "Warp" => true,
+        _ => false,
+    };
+
     println!("{}🔋 Power-up Status: {}/{} tools active.{}", blue, installed_count, total_count, reset);
+    if semantic_active {
+        println!("{}🧊 Semantic Blocks: ACTIVE ({}){}", teal, term, reset);
+    } else {
+        println!("{}🧊 Semantic Blocks: EMULATED (Using standard sequences){}", "\x1b[90m", reset);
+    }
+    
     if installed_count < total_count {
         println!("  {}Tip: Run 'ai setup' to activate missing tools internally.{}", "\x1b[90m", reset);
     }
@@ -185,8 +200,17 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
 
+                // Semantic: Output Start
+                println!("\x1b]133;C\x07");
+
                 // Execute via our engine
-                if let Err(e) = engine::executor::execute_command(input, &jobs, &env_manager, &macro_manager).await {
+                let result = engine::executor::execute_command(input, &jobs, &env_manager, &macro_manager).await;
+                
+                // Semantic: Block End (assuming exit code 0 on success, 1 on error for now)
+                let exit_code = if result.is_ok() { 0 } else { 1 };
+                println!("\x1b]133;D;{}\x07", exit_code);
+
+                if let Err(e) = result {
                     eprintln!("Chev Error: {}", e);
                 }
             }

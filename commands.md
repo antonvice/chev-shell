@@ -29,7 +29,7 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 | `cat` | **bat** / **mdcat** | `cat main.rs` (code) or `cat README.md` (renders Markdown) |
 | `rg` | **ripgrep** | `rg "search_term" src/` |
 | `sed` | **sd** | `sed 's/old/new/g' file.txt` |
-| `diff` | **delta** | `diff file1.rs file2.rs` |
+| `diff" | **delta** | `diff file1.rs file2.rs` |
 | `jq` | **jql** | `jq '.name' data.json` |
 | `csv` | **qsv** | `csv data.csv` (Slice, dice, and view CSVs) |
 | `cut` / `awk` | **choose** | `cut 0:3 file.csv` (using slicing) |
@@ -70,30 +70,53 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 
 ---
 
-## �️ Lifecycle & Management (The `chev` Engine)
+## 🤖 AI Integration (The "🐕 Chev" Brain)
+
+| Command | Description | Examples |
+| :--- | :--- | :--- |
+| `ai ask` | Ask any coding or terminal question | `ai ask "how to list large files?"` |
+| `ai fix` | Fix the last failed command automatically | `ai fix` |
+| `ai search` | Semantic history search (uses embeddings) | `ai search "git log from yesterday"` |
+| `ai status` | Check Ollama and model health | `ai status` |
+| `ai setup` | Global onboarding (Install model + power-ups) | `ai setup` |
+
+---
+
+## 🐚 Macros & Abbreviations
+
+| Command | Description | Examples |
+| :--- | :--- | :--- |
+| `macro set` | Create a logical shortcut with args ($1, $) | `macro set ll ls -la` |
+| `macro unset` | Remove a saved macro | `macro unset ll` |
+| `macro` | List all active macros | `macro` |
+| `abbr` | Create a "Fish-style" visual expansion | `abbr gco git checkout` |
+
+---
+
+## 🛠️ Lifecycle & Management
 
 | Command | Description | Examples |
 | :--- | :--- | :--- |
 | `chev install` | Symlink shell to `/usr/local/bin/chev` | `chev install` |
 | `chev uninstall` | Wipe EVERYTHING (tools, configs, link) | `chev uninstall` |
-| `chev cleanup` | Reset history, suggestions, and isolated tools | `chev cleanup` |
-| `chev build` | Recompile the shell from current source | `chev build` |
-| `ai setup` | Full system onboarding (Model + Power-ups) | `ai setup` |
+| `chev cleanup` | Reset history, suggestions, and macros | `chev cleanup` |
+| `chev build` | Recompile shell from current source | `chev build` |
+| `chev setup` | Setup advice and environment check | `chev setup` |
 
 ---
 
-## �🕹 Job Control
+## 🕹️ Job Control
 
 | Command | Description | Examples |
 | :--- | :--- | :--- |
 | `&` | Run command in background | `sleep 60 &` |
-| `jobs` | List background/stopped jobs | `jobs` (shows 'active for' time) |
+| `jobs` | List background/stopped jobs | `jobs` |
 | `fg <id>` | Bring job to foreground | `fg 1` |
 | `bg <id>` | Resume job in background | `bg 2` |
 | `Ctrl+Z` | Suspend foreground task | (Keyboard shortcut) |
 
 ---
 
-## 🛰 Modern Advanced
+## 🛰️ Modern Advanced
 
-*Note: The command shown in parentheses or bold is what actually executes on your system.*
+*Note: Commands in **bold** or modern alternatives are automatically executed for a 10x faster experience.*

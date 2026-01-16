@@ -35,16 +35,19 @@ pub fn get_prompt() -> String {
     // Path (Teal, Bold)
     let path_str = format!("\x01\x1b[1;38;2;110;209;195m\x02{}\x01\x1b[0m\x02 ", display_path);
     
-    // Arrow (Teal)
-    let arrow = "\x01\x1b[38;2;110;209;195m\x02>\x01\x1b[0m\x02";
+    // Semantic Block Markers (OSC 133)
+    let prompt_start = "\x1b]133;A\x07";
+    let command_start = "\x1b]133;B\x07";
 
     format!(
-        "{} {}{}{}{} ",
+        "{}{} {}{}{}{} {}",
+        prompt_start,
         shell_icon,
         user_host,
         path_str,
         git_section,
-        arrow
+        arrow,
+        command_start
     )
 }
 
