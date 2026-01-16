@@ -6,29 +6,100 @@ use rustyline::validate::Validator;
 use rustyline::Helper;
 use std::borrow::Cow;
 
-/// Simple but fast history search for suggestions
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CommandMetadata {
+    pub cmd: String,
+    pub cwd: String,
+    pub count: u32,
+    pub last_used: std::time::SystemTime,
+}
+
+/// Smarter history search using Contextual Frecency
 pub struct CommandTrie {
-    commands: Vec<String>,
+    entries: Vec<CommandMetadata>,
 }
 
 impl CommandTrie {
     pub fn new() -> Self {
-        Self { commands: Vec::new() }
+        Self { entries: Vec::new() }
     }
 
     pub fn add(&mut self, cmd: &str) {
         if cmd.is_empty() { return; }
-        // Remove old occurrences to keep it fresh
-        self.commands.retain(|x| x != cmd);
-        self.commands.push(cmd.to_string());
+        let cwd = std::env::current_dir().unwrap_or_default().to_string_lossy().to_string();
+        
+        // Update existing entry or create new one
+        if let Some(entry) = self.entries.iter_mut().find(|e| e.cmd == cmd && e.cwd == cwd) {
+            entry.count += 1;
+            entry.last_used = std::time::SystemTime::now();
+        } else {
+            self.entries.push(CommandMetadata {
+                cmd: cmd.to_string(),
+                cwd,
+                count: 1,
+                last_used: std::time::SystemTime::now(),
+            });
+        }
+    }
+
+    pub fn load(&mut self, path: &str) {
+        if let Ok(data) = std::fs::read_to_string(path) {
+            if let Ok(entries) = serde_json::from_str(&data) {
+                self.entries = entries;
+            }
+        }
+    }
+
+    pub fn save(&self, path: &str) {
+        if let Ok(data) = serde_json::to_string_pretty(&self.entries) {
+            let _ = std::fs::write(path, data);
+        }
     }
 
     pub fn suggest(&self, input: &str) -> Option<String> {
         if input.is_empty() { return None; }
-        // Exact match prefix search from most recent
-        self.commands.iter().rev()
-            .find(|c| c.starts_with(input) && *c != input)
-            .map(|c| c[input.len()..].to_string())
+        let current_cwd = std::env::current_dir().unwrap_or_default().to_string_lossy().to_string();
+
+        // 1. Exact History Match (Frecency ranked)
+        let mut candidates: Vec<_> = self.entries.iter()
+            .filter(|e| e.cmd.starts_with(input) && e.cmd != input)
+            .collect();
+
+        if !candidates.is_empty() {
+            candidates.sort_by(|a, b| {
+                let a_is_cwd = a.cwd == current_cwd;
+                let b_is_cwd = b.cwd == current_cwd;
+
+                if a_is_cwd != b_is_cwd {
+                    return b_is_cwd.cmp(&a_is_cwd);
+                }
+                
+                if b.count != a.count {
+                    return b.count.cmp(&a.count);
+                }
+
+                b.last_used.cmp(&a.last_used)
+            });
+
+            return Some(candidates.first().unwrap().cmd[input.len()..].to_string());
+        }
+
+        // 2. Subcommand Hints (Static context)
+        // If user typed 'git ', suggest 'commit', 'push', etc.
+        let parts: Vec<&str> = input.split_whitespace().collect();
+        if parts.len() == 1 && input.ends_with(' ') {
+            match parts[0] {
+                "git" => return Some("status".to_string()),
+                "docker" => return Some("ps".to_string()),
+                "npm" => return Some("run".to_string()),
+                "cargo" => return Some("build".to_string()),
+                _ => {}
+            }
+        }
+
+        None
     }
 }
 

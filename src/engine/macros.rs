@@ -81,7 +81,7 @@ impl MacroManager {
         None
     }
 
-    fn save(&self) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
         let json = serde_json::to_string_pretty(&(&self.macros, &self.abbreviations))?;
         fs::write(&self.config_path, json).context("Failed to save macros")
     }

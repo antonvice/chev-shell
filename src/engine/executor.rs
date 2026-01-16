@@ -379,24 +379,65 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             }
                         }
                         Some("setup") => {
+                            let blue = "\x1b[38;2;67;147;255m";
                             let checker = AiChecker::new();
                             let model_name = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());
                             
-                            if !checker.is_ollama_running().await {
-                                println!("{}❌ Error:{} Ollama is not running. Please start Ollama application first.", "\x1b[31m", reset);
-                                return Ok(());
+                            println!("{}🚀 Starting Global Sev Setup...{}", blue, reset);
+
+                            // 1. LLM Setup
+                            if checker.is_ollama_running().await {
+                                if !checker.has_model(&model_name).await {
+                                    println!("{}⏳ Pulling model '{}'... this might take a while.{}", teal, model_name, reset);
+                                    let _ = checker.pull_model(&model_name).await;
+                                } else {
+                                    println!("{}✅ AI Model already installed.{}", "\x1b[32m", reset);
+                                }
+                            } else {
+                                println!("{}⚠️  Ollama not running, skipping model pull.{}", "\x1b[33m", reset);
                             }
 
-                            if checker.has_model(&model_name).await {
-                                println!("{}✅ Model '{}' is already installed.{}", "\x1b[32m", model_name, reset);
-                                return Ok(());
-                            }
+                            // 2. Modern Tools Setup (Isolated Environment)
+                            println!("\n{}📦 Checking Modern Tooling...{}", blue, reset);
+                            let tools = vec![
+                                ("eza", "eza"), ("zoxide", "zoxide"), ("fd-find", "fd"),
+                                ("dust", "du-dust"), ("rip-bin", "rm-rip"), ("xcp", "xcp"),
+                                ("broot", "broot"), ("lfs", "lfs"), ("miniserve", "miniserve"),
+                                ("bat", "bat"), ("mdcat", "mdcat"), ("ripgrep", "rg"),
+                                ("sd", "sd"), ("delta", "git-delta"), ("jql", "jql"),
+                                ("qsv", "qsv"), ("tealdeer", "tldr"), ("heh", "heh"),
+                                ("lemmeknow", "lemmeknow"), ("kibi", "kibi"), ("bottom", "btm"),
+                                ("procs", "procs"), ("hyperfine", "hyperfine"), ("just", "just"),
+                                ("hwatch", "hwatch"), ("doggo", "doggo"), ("sudo-rs", "sudo-rs"),
+                                ("gping", "gping"), ("xh", "xh"), ("fend", "fend"), ("ouch", "ouch")
+                            ];
 
-                            println!("{}⏳ Pulling model '{}'... this might take a while.{}", teal, model_name, reset);
-                            match checker.pull_model(&model_name).await {
-                                Ok(_) => println!("{}✅ Model '{}' successfully installed!{}", "\x1b[32m", model_name, reset),
-                                Err(e) => eprintln!("{}❌ Failed to pull model:{} {}", "\x1b[31m", reset, e),
+                            let home = dirs::home_dir().unwrap();
+                            let isolated_root = home.join(".chev");
+
+                            for (crate_name, bin_name) in tools {
+                                if which::which(bin_name).is_err() {
+                                    println!("{}⏳ Installing {}...{}", gray, crate_name, reset);
+                                    let status = std::process::Command::new("cargo")
+                                        .arg("install")
+                                        .arg("--root")
+                                        .arg(&isolated_root)
+                                        .arg(crate_name)
+                                        .stdout(Stdio::null())
+                                        .stderr(Stdio::null())
+                                        .status();
+
+                                    if status.is_ok() && status.unwrap().success() {
+                                        println!("  {}✅ {} installed.{}", "\x1b[32m", crate_name, reset);
+                                    } else {
+                                        println!("  {}❌ Failed to install {}.{}", "\x1b[31m", crate_name, reset);
+                                    }
+                                } else {
+                                    println!("  {}✅ {} is ready.{}", "\x1b[32m", bin_name, reset);
+                                }
                             }
+                            
+                            println!("\n{}✨ Chev Setup Complete! Welcome to the modern age.{}", teal, reset);
                         }
                         _ => {
                             println!("{}🤖 Chev AI Help:{}", teal, reset);
@@ -640,15 +681,22 @@ async fn resolve_command<'a>(command: &'a str, args: Vec<&'a str>) -> Result<(St
         "rm" => "rip",
         "cp" => "xcp",
         "tree" => "broot",
+        "df" => "lfs",
+        "serve" => "miniserve",
         
         // Text & Data
+        "cat" if args.iter().any(|a| a.ends_with(".md")) => "mdcat",
         "cat" => "bat",
         "grep" | "rg" => "rg",
         "sed" => "sd",
         "diff" => "delta",
         "cut" | "awk" if args.iter().any(|a| a.contains(':')) => "choose",
         "jq" => "jql",
+        "csv" => "qsv",
         "tldr" | "man" if !args.is_empty() => "tldr",
+        "hex" => "heh",
+        "strings" | "peek" | "detect" => "lemmeknow",
+        "nano" => "kibi",
 
         // System & Monitoring
         "top" | "htop" => "btm",
@@ -658,9 +706,23 @@ async fn resolve_command<'a>(command: &'a str, args: Vec<&'a str>) -> Result<(St
         "watch" => "hwatch",
         "dig" => "doggo",
         "sudo" => "sudo-rs",
+        "ping" => "gping",
+        "http" | "curl" => "xh",
+        "calc" | "bc" => "fend",
 
         _ => command,
     };
+
+    if mapped != command {
+        // Check if the mapped tool exists
+        if which::which(mapped).is_err() {
+            let gray = "\x1b[90m";
+            let reset = "\x1b[0m";
+            println!("{}  (Tip: install {} for a better experience! run 'ai setup'){}", gray, mapped, reset);
+            return Ok((command.to_string(), args));
+        }
+    }
+
     Ok((mapped.to_string(), args))
 }
 
@@ -751,6 +813,15 @@ mod tests {
             ("watch", "hwatch"),
             ("dig", "doggo"),
             ("sudo", "sudo-rs"),
+            ("ping", "gping"),
+            ("curl", "xh"),
+            ("http", "xh"),
+            ("df", "lfs"),
+            ("calc", "fend"),
+            ("bc", "fend"),
+            ("hex", "heh"),
+            ("peek", "lemmeknow"),
+            ("nano", "kibi"),
             ("git", "git"), // No mapping
         ];
 
@@ -769,5 +840,9 @@ mod tests {
         // Test tldr mapping
         let (real, _) = resolve_command("man", vec!["ls"]).await.unwrap();
         assert_eq!(real, "tldr");
+
+        // Test mdcat mapping
+        let (real, _) = resolve_command("cat", vec!["README.md"]).await.unwrap();
+        assert_eq!(real, "mdcat");
     }
 }

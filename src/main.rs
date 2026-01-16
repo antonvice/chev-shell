@@ -116,6 +116,28 @@ async fn main() -> anyhow::Result<()> {
 
     ui::effects::display_parallel_intro(intro_lines).await;
     
+    let mut env_mgmt = env_manager.lock().unwrap();
+    let _isolated_bin = env_mgmt.setup_isolated_bin()?;
+    drop(env_mgmt);
+
+    // Initial tool scan for the "Ultimate" experience
+    let tools_to_check = vec![
+        "eza", "zoxide", "fd", "dust", "rip", "xcp", "broot", "lfs", 
+        "miniserve", "bat", "mdcat", "rg", "sd", "delta", "jql", "qsv", 
+        "tldr", "heh", "lemmeknow", "kibi", "btm", "procs", "hyperfine", 
+        "just", "hwatch", "doggo", "sudo-rs", "gping", "xh", "fend", "ouch"
+    ];
+    let installed_count = tools_to_check.iter().filter(|t| which::which(t).is_ok()).count();
+    let total_count = tools_to_check.len();
+    
+    let blue = "\x1b[38;2;67;147;255m";
+    let reset = "\x1b[0m";
+    println!("{}🔋 Power-up Status: {}/{} tools active.{}", blue, installed_count, total_count, reset);
+    if installed_count < total_count {
+        println!("  {}Tip: Run 'ai setup' to activate missing tools internally.{}", "\x1b[90m", reset);
+    }
+    println!();
+
     let mut rl = rustyline::Editor::<ui::suggestions::ShellHelper, rustyline::history::FileHistory>::new()?;
     rl.set_helper(Some(ui::suggestions::ShellHelper::new(Arc::clone(&macro_manager))));
 
@@ -126,12 +148,8 @@ async fn main() -> anyhow::Result<()> {
     if rl.load_history("history.txt").is_err() {
         // Silently continue if no history
     } else {
-        // Prime the trie with existing history
-        let history_cmds: Vec<String> = rl.history().iter().map(|s| s.to_string()).collect();
         if let Some(helper) = rl.helper_mut() {
-            for cmd in history_cmds {
-                helper.trie.add(&cmd);
-            }
+            helper.trie.load("suggestions.json");
         }
     }
 
@@ -147,6 +165,7 @@ async fn main() -> anyhow::Result<()> {
                 if input == "exit" || input == "quit" { break; }
 
                 let _ = rl.add_history_entry(input);
+                let _ = rl.save_history("history.txt");
                 if let Some(helper) = rl.helper_mut() {
                     helper.trie.add(input);
                 }
@@ -183,6 +202,12 @@ async fn main() -> anyhow::Result<()> {
                         }
                     }
                 }
+                // Save suggestions
+                if let Some(helper) = rl.helper_mut() {
+                    helper.trie.save("suggestions.json");
+                }
+                // Save macros
+                let _ = macro_manager.lock().unwrap().save();
                 break;
             }
             Err(err) => {
