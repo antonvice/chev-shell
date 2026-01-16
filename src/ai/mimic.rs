@@ -19,6 +19,10 @@ impl MimicManager {
         let mut path = dirs::home_dir().unwrap_or_else(|| PathBuf::from("."));
         path.push(".chev");
         path.push("mimic_db");
+        Self::new_at_path(path)
+    }
+
+    pub fn new_at_path(path: PathBuf) -> Self {
         let uri = path.to_string_lossy().to_string();
         
         // Ensure directory exists
@@ -103,5 +107,35 @@ impl MimicManager {
         }
 
         Ok(commands)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[tokio::test]
+    async fn test_mimic_storage_and_search() -> Result<()> {
+        let dir = tempdir()?;
+        let manager = MimicManager::new_at_path(dir.path().to_path_buf());
+        
+        let cmd1 = "ls -la";
+        let vec1 = vec![1.0, 0.0, 0.0];
+        
+        let cmd2 = "cd /tmp";
+        let vec2 = vec![0.0, 1.0, 0.0];
+        
+        manager.add_command(cmd1, vec1).await?;
+        manager.add_command(cmd2, vec2).await?;
+        
+        // Search for something close to cmd1
+        let search_vec = vec![0.9, 0.1, 0.0];
+        let results = manager.search(search_vec, 1).await?;
+        
+        assert_eq!(results.len(), 1);
+        assert_eq!(results[0], cmd1);
+        
+        Ok(())
     }
 }
