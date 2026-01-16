@@ -139,3 +139,86 @@ mod tests {
         Ok(())
     }
 }
+#[derive(serde::Serialize)]
+struct OllamaGenerateRequest {
+    model: String,
+    prompt: String,
+    stream: bool,
+    options: Option<OllamaOptions>,
+}
+
+#[derive(serde::Serialize)]
+struct OllamaOptions {
+    temperature: f32,
+    num_predict: i32,
+    stop: Vec<String>,
+}
+
+#[derive(serde::Deserialize)]
+struct OllamaGenerateResponse {
+    response: String,
+}
+
+pub async fn generate_ghost_suggestion(model: &str, buffer: &str) -> Option<String> {
+    if buffer.trim().is_empty() {
+        return None;
+    }
+
+    // Contextual awareness
+    let cwd = std::env::current_dir().unwrap_or_default();
+    let dir_name = cwd.file_name().unwrap_or_default().to_string_lossy();
+    
+    // List files (limted to top 5 for speed/context size)
+    let files: String = std::fs::read_dir(&cwd)
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .take(10)
+                .map(|e| e.file_name().to_string_lossy().to_string())
+                .collect::<Vec<_>>()
+                .join(", ")
+        })
+        .unwrap_or_default();
+
+    let prompt = format!(
+        "You are a shell autocomplete. 
+        Context: Directory '{}', Files: [{}].
+        User typed: '{}'.
+        Provide only the completion text to follow the cursor. 
+        If text is 'git comm', completion is 'it -m \"fix\"'.
+        Start completion immediately. Do not repeat user input.", 
+        dir_name, files, buffer
+    );
+
+    let client = reqwest::Client::new();
+    let request = OllamaGenerateRequest {
+        model: model.to_string(),
+        prompt,
+        stream: false,
+        options: Some(OllamaOptions {
+            temperature: 0.1,
+            num_predict: 20, // Keep it short
+            stop: vec!["\n".to_string()],
+        }),
+    };
+
+    let res = client.post("http://localhost:11434/api/generate")
+        .json(&request)
+        .send()
+        .await;
+
+    if let Ok(response) = res {
+        if let Ok(ollama_res) = response.json::<OllamaGenerateResponse>().await {
+            let completion = ollama_res.response.trim_end();
+            if !completion.is_empty() {
+                // If the model repeated the input, strip it (silly model)
+                if completion.starts_with(buffer) {
+                     return Some(completion[buffer.len()..].to_string());
+                }
+                return Some(completion.to_string());
+            }
+        }
+    }
+    
+    None
+}

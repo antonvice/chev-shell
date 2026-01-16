@@ -153,8 +153,59 @@ async fn main() -> anyhow::Result<()> {
     }
     println!();
 
+    let ghost_state = Arc::new(Mutex::new(ui::suggestions::GhostState::default()));
+    
+    // Background task for Ghost Text (AI Suggestions)
+    let ghost_state_clone = Arc::clone(&ghost_state);
+    let algo_jobs = Arc::clone(&jobs); // Jobs manager available if needed context
+    let algo_env = Arc::clone(&env_manager);
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
+        let model_name = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());
+        
+        loop {
+            interval.tick().await;
+            
+            let (buffer, should_trigger) = {
+                if let Ok(state) = ghost_state_clone.lock() {
+                    if let Some(last) = state.last_typing {
+                        if state.ghost_text.is_none() && !state.current_buffer.is_empty() && last.elapsed().as_millis() > 1000 {
+                             (state.current_buffer.clone(), true)
+                        } else {
+                            (String::new(), false)
+                        }
+                    } else {
+                        (String::new(), false)
+                    }
+                } else {
+                    (String::new(), false)
+                }
+            };
+            
+            if should_trigger {
+                // Generate suggestion
+                // Simulate Context Awareness
+                 // In a real implementation this would check file context
+                 let suggestion = chev_shell::ai::mimic::generate_ghost_suggestion(&model_name, &buffer).await;
+
+                 if let Some(sugg) = suggestion {
+                     if let Ok(mut state) = ghost_state_clone.lock() {
+                         // Double check we haven't typed in the meantime
+                         if state.current_buffer == buffer {
+                            state.ghost_text = Some(sugg.clone());
+                            use std::io::Write;
+                            // Send side-channel command
+                            print!("\x1b]1338;ghost;{}\x07", sugg);
+                            let _ = std::io::stdout().flush();
+                         }
+                     }
+                 }
+            }
+        }
+    });
+
     let mut rl = rustyline::Editor::<ui::suggestions::ShellHelper, rustyline::history::FileHistory>::new()?;
-    rl.set_helper(Some(ui::suggestions::ShellHelper::new(Arc::clone(&macro_manager))));
+    rl.set_helper(Some(ui::suggestions::ShellHelper::new(Arc::clone(&macro_manager), Arc::clone(&ghost_state))));
 
     // Key Bindings: Accept hint with Tab or Right Arrow
     rl.bind_sequence(KeyEvent(KeyCode::Tab, Modifiers::NONE), Cmd::Complete);

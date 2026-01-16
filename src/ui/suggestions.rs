@@ -103,22 +103,35 @@ impl CommandTrie {
     }
 }
 
-pub struct StringHint(String);
+pub struct StringHint {
+    pub text: String,
+    pub hidden: bool,
+}
+
 impl Hint for StringHint {
-    fn display(&self) -> &str { &self.0 }
-    fn completion(&self) -> Option<&str> { Some(&self.0) }
+    fn display(&self) -> &str { if self.hidden { "" } else { &self.text } }
+    fn completion(&self) -> Option<&str> { Some(&self.text) }
+}
+
+#[derive(Clone, Default)]
+pub struct GhostState {
+    pub current_buffer: String,
+    pub last_typing: Option<std::time::Instant>,
+    pub ghost_text: Option<String>,
 }
 
 pub struct ShellHelper {
     pub trie: CommandTrie,
     pub macro_manager: std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>,
+    pub ghost_state: std::sync::Arc<std::sync::Mutex<GhostState>>,
 }
 
 impl ShellHelper {
-    pub fn new(macro_manager: std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>) -> Self {
+    pub fn new(macro_manager: std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>, ghost_state: std::sync::Arc<std::sync::Mutex<GhostState>>) -> Self {
         Self { 
             trie: CommandTrie::new(),
             macro_manager,
+            ghost_state,
         }
     }
 }
@@ -129,19 +142,37 @@ impl Completer for ShellHelper {
     type Candidate = rustyline::completion::Pair;
 
     fn complete(&self, line: &str, pos: usize, _ctx: &Context<'_>) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
-        crate::ui::completion::ChevCompleter::complete(line, pos, &self.macro_manager)
+        crate::ui::completion::ChevCompleter::complete(line, pos, &self.macro_manager, &self.ghost_state)
     }
 }
 
 impl Hinter for ShellHelper {
     type Hint = StringHint;
     fn hint(&self, line: &str, _pos: usize, _ctx: &Context<'_>) -> Option<Self::Hint> {
+        // Update Ghost State
+        if let Ok(mut state) = self.ghost_state.try_lock() {
+            state.current_buffer = line.to_string();
+            state.last_typing = Some(std::time::Instant::now());
+            // Clear previous ghost text on typing
+            if state.ghost_text.is_some() {
+                state.ghost_text = None;
+                use std::io::Write;
+                print!("\x1b]1338;ghost;\x07");
+                let _ = std::io::stdout().flush();
+            }
+            
+            // Return ghost text as hidden hint if available
+            if let Some(ghost) = &state.ghost_text {
+                 return Some(StringHint { text: ghost.clone(), hidden: true });
+            }
+        }
+
         // 1. Check for AI Suggestions (if line is empty or starts a fix)
         {
             let macros = self.macro_manager.lock().unwrap();
             if let Some(suggestion) = &macros.last_suggestion {
                 if line.is_empty() || suggestion.starts_with(line) {
-                    return Some(StringHint(suggestion[line.len()..].to_string()));
+                    return Some(StringHint { text: suggestion[line.len()..].to_string(), hidden: false });
                 }
             }
         }
@@ -152,17 +183,18 @@ impl Hinter for ShellHelper {
         {
             let macros = self.macro_manager.lock().unwrap();
             if let Some(expansion) = macros.get_abbreviation(line.trim()) {
-                return Some(StringHint(format!(" ({})", expansion)));
+                return Some(StringHint { text: format!(" ({})", expansion), hidden: false });
             }
         }
 
         // 3. Fallback to History
-        self.trie.suggest(line).map(StringHint)
+        self.trie.suggest(line).map(|s| StringHint { text: s, hidden: false })
     }
 }
 
 impl Highlighter for ShellHelper {
     fn highlight_hint<'h>(&self, hint: &'h str) -> Cow<'h, str> {
+        if hint.is_empty() { return Cow::Borrowed(hint); }
         // Ghost text in Dim Gray
         Cow::Owned(format!("\x1b[90m{}\x1b[0m", hint))
     }

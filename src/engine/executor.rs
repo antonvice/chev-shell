@@ -508,7 +508,27 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             let current_exe = std::env::current_exe()?;
                             let target = "/usr/local/bin/chev";
                             
-                            println!("{}📦 Installing Chev to {}...{}", gray, target, reset);
+                            println!("{}📦 Installing Chev...{}", gray, reset);
+
+                            // 1. Dependency Check: Protobuf
+                            if which::which("protoc").is_err() {
+                                println!("{}🛠️  Protobuf not found (required for AI memory). Installing...{}", gray, reset);
+                                let status = std::process::Command::new("brew")
+                                    .args(&["install", "protobuf"])
+                                    .status();
+                                if status.is_ok() { println!("{}✅ Protobuf installed.{}", "\x1b[32m", reset); }
+                            }
+
+                            // 2. Dependency Check: Ollama
+                            if which::which("ollama").is_err() {
+                                println!("{}🧠 Ollama not found. Installing...{}", gray, reset);
+                                let status = std::process::Command::new("brew")
+                                    .args(&["install", "ollama"])
+                                    .status();
+                                if status.is_ok() { println!("{}✅ Ollama installed.{}", "\x1b[32m", reset); }
+                            }
+
+                            println!("{}🔗 Symlinking to {}...{}", gray, target, reset);
                             
                             let status = std::process::Command::new("sudo")
                                 .arg("ln")

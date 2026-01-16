@@ -4,6 +4,7 @@ pub enum RioAction {
     Notify { title: String, message: String },
     Opacity(f32),
     Badge(String),
+    Ghost(String),
 }
 
 pub fn send_rio(action: RioAction) {
@@ -16,6 +17,9 @@ pub fn send_rio(action: RioAction) {
         }
         RioAction::Badge(text) => {
             format!("\x1b]1338;badge;{}\x07", text)
+        }
+        RioAction::Ghost(text) => {
+            format!("\x1b]1338;ghost;{}\x07", text)
         }
     };
     print!("{}", sequence);

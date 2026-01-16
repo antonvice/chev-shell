@@ -5,14 +5,33 @@ use std::path::Path;
 pub struct ChevCompleter;
 
 impl ChevCompleter {
-    pub fn complete(line: &str, pos: usize, macro_manager: &std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>) -> Result<(usize, Vec<Pair>)> {
+    pub fn complete(line: &str, pos: usize, macro_manager: &std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>, ghost_state: &std::sync::Arc<std::sync::Mutex<crate::ui::suggestions::GhostState>>) -> Result<(usize, Vec<Pair>)> {
         let (before, _) = line.split_at(pos);
         let parts: Vec<&str> = before.split_whitespace().collect();
         
         // 0. AI Suggestion Candidates
         let mut all_matches = {
-            let macros = macro_manager.lock().unwrap();
             let mut matches = Vec::new();
+            
+            // Check Ghost State first
+            if let Ok(state) = ghost_state.lock() {
+                if let Some(ghost) = &state.ghost_text {
+                    matches.push(Pair {
+                         display: format!("{} 👻 Ghost-Text", ghost),
+                         replacement: ghost.clone(),
+                    });
+                     // If we have a ghost text, it's specific. We might want to return early or let it be the first option.
+                     // But we need to be careful about the 'start' position.
+                     // Ghost text assumes it's appended to the CURRENT buffer.
+                     // The 'start' returned by this function usually matches the start of the word being typed.
+                     // If we return 'pos', we append.
+                     if matches.len() > 0 {
+                          return Ok((pos, matches));
+                     }
+                }
+            }
+
+            let macros = macro_manager.lock().unwrap();
             if let Some(suggestion) = &macros.last_suggestion {
                 // Suggest if it's an exact start or we haven't typed much yet
                 if (suggestion.starts_with(line) && !line.is_empty()) || (line.is_empty() && suggestion.len() > 0) {
