@@ -51,6 +51,10 @@ pub async fn execute_command(input: &str, jobs: &Arc<Mutex<JobManager>>, env_man
                     if let Some(fixed) = json["fixed_command"].as_str() {
                         let mut m = macros_for_ai.lock().unwrap();
                         m.last_suggestion = Some(fixed.to_string());
+                        crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Notify { 
+                            title: "AI Fix Ready".to_string(), 
+                            message: format!("Fixed command: {}", fixed) 
+                        });
                     }
                 }
             }
@@ -276,6 +280,10 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             match client.generate(prompt, false).await {
                                 Ok(response) => {
                                     println!("{}🤖 AI:{} {}", teal, reset, response);
+                                    crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Notify { 
+                                        title: "AI Answered".to_string(), 
+                                        message: "Chev has finished thinking.".to_string() 
+                                    });
                                 }
                                 Err(e) => {
                                     eprintln!("{}❌ Error:{} {}", teal, reset, e);
@@ -311,6 +319,10 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                                             println!("{}💡 Suggestion:{} {}", teal, reset, fixed);
                                             let mut macros = macro_mutex.lock().unwrap();
                                             macros.last_suggestion = Some(fixed.to_string());
+                                            crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Notify { 
+                                                title: "AI Fix Suggestion".to_string(), 
+                                                message: fixed.to_string() 
+                                            });
                                         }
                                     } else {
                                         println!("{}AI returned an invalid response.{}", gray, reset);
@@ -446,6 +458,41 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             println!("  ai search <desc> - Search history semantically.");
                             println!("  ai status        - Check AI system health.");
                             println!("  ai setup         - Install the required AI model and modern tools.");
+                        }
+                    }
+                    return Ok(());
+                }
+                "rio" => {
+                    let teal = "\x1b[38;2;110;209;195m";
+                    let reset = "\x1b[0m";
+                    let gray = "\x1b[90m";
+                    
+                    match cmd.args.get(1).map(|s| s.as_str()) {
+                        Some("notify") => {
+                            if cmd.args.len() >= 4 {
+                                let title = cmd.args[2].clone();
+                                let msg = cmd.args[3..].join(" ");
+                                crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Notify { title, message: msg });
+                            } else {
+                                println!("Usage: rio notify <title> <message>");
+                            }
+                        }
+                        Some("opacity") => {
+                            if let Some(val_str) = cmd.args.get(2) {
+                                if let Ok(val) = val_str.parse::<f32>() {
+                                    crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Opacity(val));
+                                }
+                            }
+                        }
+                        Some("badge") => {
+                            let text = cmd.args[2..].join(" ");
+                            crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Badge(text));
+                        }
+                        _ => {
+                            println!("{}🌊 Rio Terminal Control:{}", teal, reset);
+                            println!("  {}rio notify <title> <msg>{} - Send system notification", gray, reset);
+                            println!("  {}rio opacity <0.0-1.0>{}   - Change terminal transparency", gray, reset);
+                            println!("  {}rio badge <text>{}       - Set tab badge", gray, reset);
                         }
                     }
                     return Ok(());
