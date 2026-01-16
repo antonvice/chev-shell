@@ -145,11 +145,16 @@ async fn main() -> anyhow::Result<()> {
     rl.bind_sequence(KeyEvent(KeyCode::Tab, Modifiers::NONE), Cmd::Complete);
     rl.bind_sequence(KeyEvent(KeyCode::Right, Modifiers::NONE), Cmd::Move(Movement::EndOfLine));
 
-    if rl.load_history("history.txt").is_err() {
+    let home = dirs::home_dir().expect("Home dir not found");
+    let chev_dir = home.join(".chev");
+    let history_path = chev_dir.join("history.txt");
+    let suggestions_path = chev_dir.join("suggestions.json");
+
+    if rl.load_history(&history_path).is_err() {
         // Silently continue if no history
     } else {
         if let Some(helper) = rl.helper_mut() {
-            helper.trie.load("suggestions.json");
+            helper.trie.load(suggestions_path.to_str().unwrap());
         }
     }
 
@@ -165,7 +170,7 @@ async fn main() -> anyhow::Result<()> {
                 if input == "exit" || input == "quit" { break; }
 
                 let _ = rl.add_history_entry(input);
-                let _ = rl.save_history("history.txt");
+                let _ = rl.save_history(&history_path);
                 if let Some(helper) = rl.helper_mut() {
                     helper.trie.add(input);
                 }
@@ -204,7 +209,7 @@ async fn main() -> anyhow::Result<()> {
                 }
                 // Save suggestions
                 if let Some(helper) = rl.helper_mut() {
-                    helper.trie.save("suggestions.json");
+                    helper.trie.save(suggestions_path.to_str().unwrap());
                 }
                 // Save macros
                 let _ = macro_manager.lock().unwrap().save();
@@ -216,6 +221,6 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     }
-    rl.save_history("history.txt")?;
+    rl.save_history(&history_path)?;
     Ok(())
 }

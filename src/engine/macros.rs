@@ -20,7 +20,11 @@ pub struct MacroManager {
 impl MacroManager {
     pub fn new() -> Self {
         let home = dirs::home_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
-        let config_path = home.join(".chev_macros.json");
+        let chev_dir = home.join(".chev");
+        if !chev_dir.exists() {
+            let _ = std::fs::create_dir_all(&chev_dir);
+        }
+        let config_path = chev_dir.join("macros.json");
         
         let mut manager = Self {
             macros: HashMap::new(),

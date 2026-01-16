@@ -70,7 +70,19 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 
 ---
 
-## 🕹 Job Control
+## �️ Lifecycle & Management (The `chev` Engine)
+
+| Command | Description | Examples |
+| :--- | :--- | :--- |
+| `chev install` | Symlink shell to `/usr/local/bin/chev` | `chev install` |
+| `chev uninstall` | Wipe EVERYTHING (tools, configs, link) | `chev uninstall` |
+| `chev cleanup` | Reset history, suggestions, and isolated tools | `chev cleanup` |
+| `chev build` | Recompile the shell from current source | `chev build` |
+| `ai setup` | Full system onboarding (Model + Power-ups) | `ai setup` |
+
+---
+
+## �🕹 Job Control
 
 | Command | Description | Examples |
 | :--- | :--- | :--- |

@@ -445,7 +445,97 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             println!("  ai fix           - Fix the last failed command.");
                             println!("  ai search <desc> - Search history semantically.");
                             println!("  ai status        - Check AI system health.");
-                            println!("  ai setup         - Install the required AI model.");
+                            println!("  ai setup         - Install the required AI model and modern tools.");
+                        }
+                    }
+                    return Ok(());
+                }
+                "chev" => {
+                    let teal = "\x1b[38;2;110;209;195m";
+                    let reset = "\x1b[0m";
+                    let gray = "\x1b[90m";
+                    let red = "\x1b[31m";
+                    
+                    match cmd.args.get(1).map(|s| s.as_str()) {
+                        Some("install") => {
+                            let current_exe = std::env::current_exe()?;
+                            let target = "/usr/local/bin/chev";
+                            
+                            println!("{}📦 Installing Chev to {}...{}", gray, target, reset);
+                            
+                            let status = std::process::Command::new("sudo")
+                                .arg("ln")
+                                .arg("-sf")
+                                .arg(&current_exe)
+                                .arg(target)
+                                .status();
+                                
+                            if status.is_ok() && status.unwrap().success() {
+                                println!("{}✅ Chev installed successfully! Type 'chev' to launch anytime.{}", "\x1b[32m", reset);
+                            } else {
+                                println!("{}❌ Installation failed. Check sudo permissions.{}", red, reset);
+                            }
+                        }
+                        Some("uninstall") => {
+                            println!("{}🧨 Full Uninstall initiated...{}", red, reset);
+                            
+                            let _ = std::process::Command::new("sudo")
+                                .arg("rm")
+                                .arg("/usr/local/bin/chev")
+                                .status();
+                            
+                            if let Some(home) = dirs::home_dir() {
+                                let chev_dir = home.join(".chev");
+                                if chev_dir.exists() {
+                                    let _ = std::fs::remove_dir_all(chev_dir);
+                                    println!("{}✅ Atomic wipe of ~/.chev successful.{}", gray, reset);
+                                }
+                            }
+                            
+                            println!("{}✨ Chev has been cleared. Goodbye!{}", teal, reset);
+                            std::process::exit(0);
+                        }
+                        Some("cleanup") => {
+                            println!("{}🧹 Cleaning up persistent state...{}", gray, reset);
+                            
+                            if let Some(home) = dirs::home_dir() {
+                                let chev_dir = home.join(".chev");
+                                if chev_dir.exists() {
+                                    // Remove everything except the bin folder? 
+                                    // Actually user likely wants a full state reset.
+                                    let _ = std::fs::remove_file(chev_dir.join("history.txt"));
+                                    let _ = std::fs::remove_file(chev_dir.join("suggestions.json"));
+                                    let _ = std::fs::remove_file(chev_dir.join("macros.json"));
+                                    
+                                    println!("{}✅ Local history, suggestions, and macros wiped.{}", teal, reset);
+                                }
+                            }
+                        }
+                        Some("build") => {
+                            println!("{}🛠️  Internal Rebuild starting...{}", gray, reset);
+                            let status = std::process::Command::new("cargo")
+                                .arg("build")
+                                .status();
+                                
+                            if status.is_ok() && status.unwrap().success() {
+                                println!("{}✅ Rebuild complete! Restart to apply changes.{}", teal, reset);
+                            } else {
+                                println!("{}❌ Build failed.{}", red, reset);
+                            }
+                        }
+                        Some("setup") => {
+                            // Alias to ai setup logic is tricky without duplication, 
+                            // so we'll just advise or eventually refactor.
+                            // For now, let's just trigger it or explain.
+                            println!("{}Tip: Use 'ai setup' for the full model + tool onboarding.{}", gray, reset);
+                        }
+                        _ => {
+                            println!("{}🐚 Chev Lifecycle Management:{}", teal, reset);
+                            println!("  chev install   - Symlink chev to /usr/local/bin/chev");
+                            println!("  chev uninstall - Wipe all tools, configs, and the link");
+                            println!("  chev cleanup   - Reset history, suggestions, and isolated tools");
+                            println!("  chev build     - Recompile the shell from source");
+                            println!("  chev setup     - Guide for full system setup");
                         }
                     }
                     return Ok(());
