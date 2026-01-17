@@ -1133,7 +1133,6 @@ dependencies = [
  "arrow",
  "arrow-array",
  "arrow-schema",
- "base64",
  "bincode",
  "clap",
  "colored",

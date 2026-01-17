@@ -37,6 +37,8 @@ enum Commands {
 enum InternalAction {
     /// Broot wrapper for IDE mode
     IdeBroot,
+    /// AI Browser for summarization
+    Browse { url: String },
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -119,6 +121,10 @@ async fn main() -> anyhow::Result<()> {
                          chev_shell::ui::protocol::send_rio(chev_shell::ui::protocol::RioAction::Edit(path.to_string()));
                     }
                 }
+                return Ok(());
+            }
+            InternalAction::Browse { url } => {
+                ui::browser::run_ai_browser(&url).await?;
                 return Ok(());
             }
         }

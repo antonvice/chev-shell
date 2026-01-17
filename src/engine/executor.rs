@@ -275,6 +275,25 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                                 command: "chev ai chat --internal".to_string() 
                             });
                         }
+                        Some("browse") => {
+                            if let Some(url) = cmd.args.get(2) {
+                                let gray = "\x1b[90m";
+                                let reset = "\x1b[0m";
+                                println!("{}🐕 Opening AI Browser for {}...{}", gray, url, reset);
+                                
+                                let chev_path = std::env::current_exe()
+                                    .map(|p| p.to_string_lossy().to_string())
+                                    .unwrap_or_else(|_| "chev".to_string());
+
+                                crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::SplitPane { 
+                                    direction: "right".to_string(), 
+                                    ratio: 0.3, 
+                                    command: format!("{} internal browse {}", chev_path, url)
+                                });
+                            } else {
+                                println!("Usage: ai browse <url>");
+                            }
+                        }
                         Some("ask") => {
                             let prompt = cmd.args[2..].join(" ");
                             if prompt.is_empty() {
@@ -464,6 +483,7 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                         _ => {
                             println!("{}🤖 Chev AI Help:{}", teal, reset);
                             println!("  ai chat          - Open a persistent AI chat sidebar.");
+                            println!("  ai browse <url>  - Browse and summarize a webpage in the sidebar.");
                             println!("  ai ask <prompt>  - Ask the AI for advice or help.");
                             println!("  ai fix           - Fix the last failed command.");
                             println!("  ai search <desc> - Search history semantically.");
@@ -675,6 +695,25 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
         if original_command == "vibe" && commands_len == 1 {
              crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("vibe".to_string())));
              return Ok(());
+        }
+
+        if original_command == "browse" && commands_len == 1 {
+             if let Some(url) = cmd.args.get(1) {
+                 let chev_path = std::env::current_exe()
+                     .map(|p| p.to_string_lossy().to_string())
+                     .unwrap_or_else(|_| "chev".to_string());
+
+                 println!("\x1b[90m🐕 Opening AI Browser for {}...\x1b[0m", url);
+                 crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::SplitPane { 
+                     direction: "right".to_string(), 
+                     ratio: 0.3, 
+                     command: format!("{} internal browse {}", chev_path, url)
+                 });
+                 return Ok(());
+             } else {
+                 println!("Usage: browse <url>");
+                 return Ok(());
+             }
         }
 
         // Reactive triggers
