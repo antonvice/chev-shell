@@ -648,6 +648,33 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
             return Ok(());
         }
 
+        if original_command == "effect" && commands_len == 1 {
+             let effect = match cmd.args.get(1).map(|s| s.as_str()) {
+                 Some("off") | Some("none") | Some("0") => None,
+                 Some(s) => Some(s.to_string()),
+                 None => {
+                     println!("Usage: effect <matrix|vibe|none>");
+                     return Ok(());
+                 }
+             };
+             crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(effect));
+             return Ok(());
+        }
+
+        if original_command == "vibe" && commands_len == 1 {
+             crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("vibe".to_string())));
+             return Ok(());
+        }
+
+        // Reactive triggers
+        if original_command == "cmatrix" && commands_len == 1 {
+             crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("matrix".to_string())));
+        }
+
+        if original_command == "spotify" && commands_len == 1 {
+             crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("vibe".to_string())));
+        }
+
         // Feature: Broot IDE Mode
         if (original_command == "broot" || original_command == "br") && commands_len == 1 {
             // Send signal to split pane 20/80

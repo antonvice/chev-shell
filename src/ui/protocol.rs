@@ -8,6 +8,7 @@ pub enum RioAction {
     SplitPane { direction: String, ratio: f32, command: String },
     Preview(String),
     MiniMap(bool),
+    BackgroundEffect(Option<String>),
 }
 
 pub fn send_rio(action: RioAction) {
@@ -33,6 +34,10 @@ pub fn send_rio(action: RioAction) {
         RioAction::MiniMap(enabled) => {
             let val = if enabled { "1" } else { "0" };
             format!("\x1b]1338;minimap;{}\x07", val)
+        }
+        RioAction::BackgroundEffect(name) => {
+            let effect = name.as_deref().unwrap_or("none");
+            format!("\x1b]1338;effect;{}\x07", effect)
         }
     };
     print!("{}", sequence);
