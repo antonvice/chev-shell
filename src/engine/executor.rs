@@ -629,6 +629,16 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
             return handle_cd(cmd.args.iter().skip(1).map(|s| s.as_str()).collect(), env_mutex).await;
         }
 
+        if original_command == "preview" && commands_len == 1 {
+             if let Some(path) = cmd.args.get(1) {
+                 crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Preview(path.clone()));
+                 return Ok(());
+             } else {
+                 println!("Usage: preview <file>");
+                 return Ok(());
+             }
+        }
+
         // Feature: Broot IDE Mode
         if (original_command == "broot" || original_command == "br") && commands_len == 1 {
             // Send signal to split pane 20/80

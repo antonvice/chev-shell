@@ -6,6 +6,7 @@ pub enum RioAction {
     Badge(String),
     Ghost(String),
     SplitPane { direction: String, ratio: f32, command: String },
+    Preview(String),
 }
 
 pub fn send_rio(action: RioAction) {
@@ -24,6 +25,9 @@ pub fn send_rio(action: RioAction) {
         }
         RioAction::SplitPane { direction, ratio, command } => {
             format!("\x1b]1338;split;{};{};{}\x07", direction, ratio, command)
+        }
+        RioAction::Preview(path) => {
+            format!("\x1b]1338;preview;{}\x07", path)
         }
     };
     print!("{}", sequence);
