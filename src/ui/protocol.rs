@@ -7,6 +7,7 @@ pub enum RioAction {
     Ghost(String),
     SplitPane { direction: String, ratio: f32, command: String },
     Preview(String),
+    MiniMap(bool),
 }
 
 pub fn send_rio(action: RioAction) {
@@ -28,6 +29,10 @@ pub fn send_rio(action: RioAction) {
         }
         RioAction::Preview(path) => {
             format!("\x1b]1338;preview;{}\x07", path)
+        }
+        RioAction::MiniMap(enabled) => {
+            let val = if enabled { "1" } else { "0" };
+            format!("\x1b]1338;minimap;{}\x07", val)
         }
     };
     print!("{}", sequence);

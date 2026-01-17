@@ -639,6 +639,15 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
              }
         }
 
+        if original_command == "minimap" && commands_len == 1 {
+            let enabled = match cmd.args.get(1).map(|s| s.as_str()) {
+                Some("off") | Some("0") | Some("hide") => false,
+                _ => true,
+            };
+            crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::MiniMap(enabled));
+            return Ok(());
+        }
+
         // Feature: Broot IDE Mode
         if (original_command == "broot" || original_command == "br") && commands_len == 1 {
             // Send signal to split pane 20/80
