@@ -716,6 +716,31 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
              }
         }
 
+        if original_command == "vibe" && commands_len == 1 {
+             let on = match cmd.args.get(1).map(|s| s.as_str()) {
+                 Some("off") | Some("0") => false,
+                 _ => true,
+             };
+             
+             if on {
+                 println!("\x1b[38;2;110;209;195m🐕 Vibe Mode: ON. Syncing audio with Rio...\x1b[0m");
+                 crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("vibe".to_string())));
+                 crate::ui::vibe::start_vibe_engine();
+             } else {
+                 println!("\x1b[90m🐕 Vibe Mode: OFF.\x1b[0m");
+                 crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(None));
+                 // Stopping the engine is harder in this leaked setup, but we'll at least hide the effect
+             }
+             return Ok(());
+        }
+
+        if (original_command == "spotify" || original_command == "music") && commands_len == 1 {
+            println!("\x1b[38;2;110;209;195m🎸 Audio Reactive: Syncing with Spotify vibe...\x1b[0m");
+            crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("vibe".to_string())));
+            crate::ui::vibe::start_vibe_engine();
+            return Ok(());
+        }
+
         // Reactive triggers
         if original_command == "cmatrix" && commands_len == 1 {
              crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("matrix".to_string())));

@@ -12,6 +12,7 @@ pub enum RioAction {
     ProgressBar { fraction: f32, label: String },
     Edit(String),
     RequestHistory,
+    Spectrum(Vec<f32>),
 }
 
 pub fn send_rio(action: RioAction) {
@@ -50,6 +51,10 @@ pub fn send_rio(action: RioAction) {
         }
         RioAction::RequestHistory => {
             format!("\x1b]1338;request-history\x07")
+        }
+        RioAction::Spectrum(data) => {
+            let data_str = data.iter().map(|f| format!("{:.2}", f)).collect::<Vec<String>>().join(",");
+            format!("\x1b]1338;spectrum;{}\x07", data_str)
         }
     };
     print!("{}", sequence);
