@@ -26,6 +26,17 @@ enum Commands {
         #[command(subcommand)]
         action: AiAction,
     },
+    /// Internal tools
+    Internal {
+        #[command(subcommand)]
+        action: InternalAction,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum InternalAction {
+    /// Broot wrapper for IDE mode
+    IdeBroot,
 }
 
 #[derive(clap::Subcommand, Debug)]
@@ -84,6 +95,30 @@ async fn main() -> anyhow::Result<()> {
         match action {
             AiAction::Chat { internal } => {
                 ui::chat::run_ai_chat(internal).await?;
+                return Ok(());
+            }
+        }
+    }
+
+    if let Some(Commands::Internal { action }) = args.subcommand {
+        match action {
+            InternalAction::IdeBroot => {
+                let tmp_file = "/tmp/broot-out-chev";
+                let _ = std::fs::remove_file(tmp_file);
+                
+                let mut child = std::process::Command::new("broot")
+                    .arg("--outcmd")
+                    .arg(tmp_file)
+                    .spawn()?;
+                
+                child.wait()?;
+
+                if let Ok(content) = std::fs::read_to_string(tmp_file) {
+                    if let Some(path) = content.strip_prefix("edit ") {
+                         let path = path.trim();
+                         chev_shell::ui::protocol::send_rio(chev_shell::ui::protocol::RioAction::Edit(path.to_string()));
+                    }
+                }
                 return Ok(());
             }
         }

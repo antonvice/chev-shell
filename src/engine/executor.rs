@@ -688,17 +688,17 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
 
         // Feature: Broot IDE Mode
         if (original_command == "broot" || original_command == "br") && commands_len == 1 {
+            let chev_path = std::env::current_exe()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|_| "chev".to_string());
+
             // Send signal to split pane 20/80
             crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::SplitPane { 
                 direction: "left".to_string(), 
                 ratio: 0.2, 
-                command: "broot".to_string() 
+                command: format!("{} internal ide-broot", chev_path)
             });
-            // We want broot to run in the *new* pane ideally, but for now 
-            // the protocol just says 'split'. The shell itself keeps running here.
-            // If the split happens, Rio might steal focus or spawn a new shell.
-            // For this v1, we run broot here as normal, assuming Rio splits *another* view
-            // to the right or left.
+            return Ok(());
         }
 
         let raw_args: Vec<&str> = cmd.args.iter().skip(1).map(|s| s.as_str()).collect();

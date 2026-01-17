@@ -10,6 +10,7 @@ pub enum RioAction {
     MiniMap(bool),
     BackgroundEffect(Option<String>),
     ProgressBar { fraction: f32, label: String },
+    Edit(String),
 }
 
 pub fn send_rio(action: RioAction) {
@@ -42,6 +43,9 @@ pub fn send_rio(action: RioAction) {
         }
         RioAction::ProgressBar { fraction, label } => {
             format!("\x1b]1338;progress;{};{}\x07", fraction, label)
+        }
+        RioAction::Edit(path) => {
+            format!("\x1b]1338;edit;{}\x07", path)
         }
     };
     print!("{}", sequence);
