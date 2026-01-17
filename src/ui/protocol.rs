@@ -9,6 +9,7 @@ pub enum RioAction {
     Preview(String),
     MiniMap(bool),
     BackgroundEffect(Option<String>),
+    ProgressBar { fraction: f32, label: String },
 }
 
 pub fn send_rio(action: RioAction) {
@@ -35,9 +36,12 @@ pub fn send_rio(action: RioAction) {
             let val = if enabled { "1" } else { "0" };
             format!("\x1b]1338;minimap;{}\x07", val)
         }
-        RioAction::BackgroundEffect(name) => {
+         RioAction::BackgroundEffect(name) => {
             let effect = name.as_deref().unwrap_or("none");
             format!("\x1b]1338;effect;{}\x07", effect)
+        }
+        RioAction::ProgressBar { fraction, label } => {
+            format!("\x1b]1338;progress;{};{}\x07", fraction, label)
         }
     };
     print!("{}", sequence);

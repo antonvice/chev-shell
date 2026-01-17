@@ -661,6 +661,17 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
              return Ok(());
         }
 
+        if original_command == "progress" && commands_len == 1 {
+            if cmd.args.get(1).map(|s| s.as_str()) == Some("off") {
+                crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::ProgressBar { fraction: -1.0, label: String::new() });
+            } else {
+                let fraction = cmd.args.get(1).and_then(|s| s.parse::<f32>().ok()).unwrap_or(0.0);
+                let label = cmd.args.get(2).cloned().unwrap_or_default();
+                crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::ProgressBar { fraction, label });
+            }
+            return Ok(());
+        }
+
         if original_command == "vibe" && commands_len == 1 {
              crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("vibe".to_string())));
              return Ok(());
