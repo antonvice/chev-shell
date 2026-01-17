@@ -265,6 +265,16 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                     let gray = "\x1b[90m";
 
                     match cmd.args.get(1).map(|s| s.as_str()) {
+                        Some("chat") => {
+                            let gray = "\x1b[90m";
+                            let reset = "\x1b[0m";
+                            println!("{}🐕 Opening AI Chat Sidebar...{}", gray, reset);
+                            crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::SplitPane { 
+                                direction: "right".to_string(), 
+                                ratio: 0.3, 
+                                command: "chev ai chat --internal".to_string() 
+                            });
+                        }
                         Some("ask") => {
                             let prompt = cmd.args[2..].join(" ");
                             if prompt.is_empty() {
@@ -453,6 +463,7 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                         }
                         _ => {
                             println!("{}🤖 Chev AI Help:{}", teal, reset);
+                            println!("  ai chat          - Open a persistent AI chat sidebar.");
                             println!("  ai ask <prompt>  - Ask the AI for advice or help.");
                             println!("  ai fix           - Fix the last failed command.");
                             println!("  ai search <desc> - Search history semantically.");

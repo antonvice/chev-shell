@@ -14,6 +14,28 @@ struct Args {
     /// Command to execute directly (optional)
     #[arg(short, long)]
     command: Option<String>,
+
+    #[command(subcommand)]
+    subcommand: Option<Commands>,
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum Commands {
+    /// AI features
+    Ai {
+        #[command(subcommand)]
+        action: AiAction,
+    },
+}
+
+#[derive(clap::Subcommand, Debug)]
+enum AiAction {
+    /// Start a chat session
+    Chat {
+        /// Internal flag for sidebar use
+        #[arg(long)]
+        internal: bool,
+    },
 }
 
 #[tokio::main]
@@ -57,6 +79,15 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     });
+
+    if let Some(Commands::Ai { action }) = args.subcommand {
+        match action {
+            AiAction::Chat { internal } => {
+                ui::chat::run_ai_chat(internal).await?;
+                return Ok(());
+            }
+        }
+    }
 
     if let Some(cmd) = args.command {
         // Execute a single command and exit
@@ -157,8 +188,8 @@ async fn main() -> anyhow::Result<()> {
     
     // Background task for Ghost Text (AI Suggestions)
     let ghost_state_clone = Arc::clone(&ghost_state);
-    let algo_jobs = Arc::clone(&jobs); // Jobs manager available if needed context
-    let algo_env = Arc::clone(&env_manager);
+    let _algo_jobs = Arc::clone(&jobs); // Jobs manager available if needed context
+    let _algo_env = Arc::clone(&env_manager);
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
         let model_name = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());

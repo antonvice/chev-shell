@@ -3,3 +3,4 @@ pub mod effects;
 pub mod suggestions;
 pub mod completion;
 pub mod protocol;
+pub mod chat;
