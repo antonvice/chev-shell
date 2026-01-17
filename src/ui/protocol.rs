@@ -11,6 +11,7 @@ pub enum RioAction {
     BackgroundEffect(Option<String>),
     ProgressBar { fraction: f32, label: String },
     Edit(String),
+    RequestHistory,
 }
 
 pub fn send_rio(action: RioAction) {
@@ -46,6 +47,9 @@ pub fn send_rio(action: RioAction) {
         }
         RioAction::Edit(path) => {
             format!("\x1b]1338;edit;{}\x07", path)
+        }
+        RioAction::RequestHistory => {
+            format!("\x1b]1338;request-history\x07")
         }
     };
     print!("{}", sequence);

@@ -20,6 +20,8 @@ pub async fn run_ai_chat(internal: bool) -> Result<()> {
     let client = OllamaClient::new(model);
     
     let mut history: Vec<(String, String)> = Vec::new();
+    let my_pid = std::process::id();
+    let context_path = format!("/tmp/chev-context-{}.txt", my_pid);
 
     loop {
         print!("{}YOU:{} ", teal, reset);
@@ -43,10 +45,25 @@ pub async fn run_ai_chat(internal: bool) -> Result<()> {
             continue;
         }
 
-        println!("{}🐕 Thinking...{}", gray, reset);
+        println!("{}🐕 Thinking... Contextualizing shell session...{}", gray, reset);
+
+        // Fetch fresh context from Rio
+        crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::RequestHistory);
+        // Small delay for file write
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        
+        let shell_context = std::fs::read_to_string(&context_path).unwrap_or_else(|_| "No shell context available.".to_string());
 
         // Simple context building
-        let mut prompt = String::new();
+        let mut prompt = format!(
+            "You are a helpful AI assistant integrated into the Chev Shell. \
+             Below is the current visible content of the user's terminal session (sibling pane).\n\
+             --- TERMINAL CONTEXT ---\n\
+             {}\n\
+             --- END CONTEXT ---\n\n",
+            shell_context
+        );
+
         for (u, a) in &history {
             prompt.push_str(&format!("User: {}\nAssistant: {}\n", u, a));
         }
