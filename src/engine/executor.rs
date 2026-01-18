@@ -697,6 +697,25 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
              return Ok(());
         }
 
+        if original_command == "voice" {
+            if cmd.args.get(1).map(|s| s.as_str()) == Some("setup") {
+                println!("🎙️  Setting up Rio Voice Control...");
+                println!("Model: Whisper Large v3-turbo (Metal Accelerated)");
+                let home = std::env::var("HOME").unwrap_or_default();
+                let models_dir = format!("{}/.rio/models", home);
+                
+                // Create directory
+                let _ = std::fs::create_dir_all(&models_dir);
+                
+                println!("1. Download the model file (approx 1.5GB):");
+                println!("   curl -L https://huggingface.co/distil-whisper/distil-large-v3/resolve/main/ggml-large-v3-turbo.bin -o ~/.rio/models/ggml-large-v3-turbo.bin");
+                println!("\n2. Once downloaded, hold the 'Fn' key in Rio to speak!");
+            } else {
+                println!("Usage: voice setup");
+            }
+            return Ok(());
+        }
+
         if original_command == "browse" && commands_len == 1 {
              if let Some(url) = cmd.args.get(1) {
                  let chev_path = std::env::current_exe()
