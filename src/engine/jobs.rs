@@ -62,3 +62,23 @@ impl JobManager {
         self.jobs.iter().find(|j| j.id == id)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use nix::unistd::Pid;
+
+    #[test]
+    fn test_job_management() {
+        let mut manager = JobManager::new();
+        let pid = Pid::from_raw(1234);
+        let id = manager.add_job(pid, "sleep 100".to_string(), JobStatus::Running);
+        
+        assert_eq!(id, 1);
+        assert_eq!(manager.get_jobs().len(), 1);
+        assert_eq!(manager.find_job_by_id(1).unwrap().pgid, pid);
+
+        manager.remove_job(pid);
+        assert_eq!(manager.get_jobs().len(), 0);
+    }
+}

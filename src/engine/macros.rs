@@ -104,3 +104,40 @@ impl MacroManager {
         &self.macros
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_macro_expansion() {
+        let mut manager = MacroManager::new();
+        manager.set_macro("g".to_string(), "git".to_string()).unwrap();
+        
+        let expanded = manager.expand_macro("g commit -m 'feat'").unwrap();
+        assert_eq!(expanded, "git commit -m 'feat'");
+
+        manager.set_macro("grep-src".to_string(), "rg $1 src/".to_string()).unwrap();
+        let expanded = manager.expand_macro("grep-src hello").unwrap();
+        assert_eq!(expanded, "rg hello src/");
+    }
+
+    #[test]
+    fn test_macro_placeholders() {
+        let mut manager = MacroManager::new();
+        manager.set_macro("dual".to_string(), "echo $1 $2".to_string()).unwrap();
+        let expanded = manager.expand_macro("dual first second").unwrap();
+        assert_eq!(expanded, "echo first second");
+
+        manager.set_macro("rest".to_string(), "echo all: $".to_string()).unwrap();
+        let expanded = manager.expand_macro("rest one two three").unwrap();
+        assert_eq!(expanded, "echo all: one two three");
+    }
+
+    #[test]
+    fn test_abbreviations() {
+        let mut manager = MacroManager::new();
+        manager.set_abbreviation("gco".to_string(), "git checkout".to_string());
+        assert_eq!(manager.get_abbreviation("gco"), Some(&"git checkout".to_string()));
+    }
+}

@@ -103,3 +103,49 @@ impl EnvManager {
         Ok(path_str)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::env;
+
+    #[test]
+    fn test_set_remove_var() {
+        let mut manager = EnvManager::new();
+        manager.set_var("CHEV_TEST".to_string(), "rocks".to_string());
+        assert_eq!(manager.get_var("CHEV_TEST"), Some(&"rocks".to_string()));
+        assert_eq!(env::var("CHEV_TEST").unwrap(), "rocks");
+
+        manager.remove_var("CHEV_TEST");
+        assert_eq!(manager.get_var("CHEV_TEST"), None);
+        assert!(env::var("CHEV_TEST").is_err());
+    }
+
+    #[test]
+    fn test_dir_stack() {
+        let mut manager = EnvManager::new();
+        let original = env::current_dir().unwrap();
+        let tmp = env::temp_dir();
+        
+        manager.pushd(tmp.clone()).unwrap();
+        assert_eq!(env::current_dir().unwrap().canonicalize().unwrap(), tmp.canonicalize().unwrap());
+        
+        let popped = manager.popd().unwrap();
+        assert_eq!(popped.canonicalize().unwrap(), original.canonicalize().unwrap());
+        assert_eq!(env::current_dir().unwrap().canonicalize().unwrap(), original.canonicalize().unwrap());
+    }
+
+    #[test]
+    fn test_add_to_path() {
+        let mut manager = EnvManager::new();
+        let test_path = "/tmp/chev-test-bin";
+        
+        manager.add_to_path(test_path, true);
+        let current_path = env::var("PATH").unwrap();
+        assert!(current_path.starts_with(test_path));
+        
+        manager.add_to_path("/usr/local/bin", false);
+        let updated_path = env::var("PATH").unwrap();
+        assert!(updated_path.contains("/usr/local/bin"));
+    }
+}

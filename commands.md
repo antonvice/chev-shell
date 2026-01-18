@@ -1,6 +1,6 @@
 # 🐕 Chev Shell Command Guide
 
-Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands you can use. Note that for performance and a modern experience, many "standard" commands are transparently mapped to faster, Rust-based alternatives.
+Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands you can use. Many "standard" commands are transparently mapped to faster, Rust-based alternatives for a modern experience.
 
 ---
 
@@ -10,15 +10,15 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 | :--- | :--- | :--- |
 | `ls` | **eza** | `ls -la`, `ls --tree` |
 | `cd` | **zoxide** | `cd Documents`, `cd project_name` (jump) |
-| `tree` | **broot** | `tree` (interactive) |
+| `tree` | **broot** | `tree` (interactive, triggers IDE split) |
 | `cp` | **xcp** | `cp file.txt backup/` |
 | `rm` | **rip** | `rm file.txt` (sends to graveyard) |
 | `find` | **fd** | `find patterns` |
 | `du` | **dust** | `du -h` |
-| `df` | **lfs** | `df` (Better disk view) |
-| `ouch` | **ouch** | `ouch compress src/ archive.zip`, `ouch decompress archive.tar.gz` |
-| `serve` | **miniserve** | `serve .` (Serve current dir over HTTP) |
-| `fselect` | **fselect** | `fselect size, path FROM . WHERE name LIKE '%.png'` |
+| `df` | **lfs** | `df` |
+| `ouch` | **ouch** | `ouch compress src/ archive.zip` |
+| `serve` | **miniserve** | `serve .` |
+| `preview` | **Native QuickLook** | `preview image.png`, `preview doc.pdf` |
 
 ---
 
@@ -29,14 +29,14 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 | `cat` | **bat** / **mdcat** | `cat main.rs` (code) or `cat README.md` (renders Markdown) |
 | `rg` | **ripgrep** | `rg "search_term" src/` |
 | `sed` | **sd** | `sed 's/old/new/g' file.txt` |
-| `diff" | **delta** | `diff file1.rs file2.rs` |
+| `diff` | **delta** | `diff file1.rs file2.rs` |
 | `jq` | **jql** | `jq '.name' data.json` |
-| `csv` | **qsv** | `csv data.csv` (Slice, dice, and view CSVs) |
+| `csv` | **qsv** | `csv data.csv` |
 | `cut` / `awk` | **choose** | `cut 0:3 file.csv` (using slicing) |
-| `man` / `tldr` | **tealdeer** | `man ls` or `tldr ls` (instant examples) |
-| `hex` | **heh** | `hex binary_file` (Interactive hex editor) |
-| `strings` / `peek` | **lemmeknow** | `strings binary` or `detect "mysterious text"` (Identifies content) |
-| `nano` | **kibi** | `nano file.txt` (Minimalist Rust editor) |
+| `man` / `tldr` | **tealdeer** | `man ls` |
+| `hex` | **heh** | `hex binary_file` |
+| `strings` | **lemmeknow** | `strings binary` |
+| `nano` | **kibi** | `nano file.txt` |
 
 ---
 
@@ -45,15 +45,15 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 | Command | Modern Alternative | Examples |
 | :--- | :--- | :--- |
 | `sudo` | **sudo-rs** | `sudo ls` |
-| `top` / `htop` | **bottom (btm)** | `top` (modern TUI) |
+| `top` / `htop` | **bottom (btm)** | `top` |
 | `ps` | **procs** | `ps aux` |
-| `time` | **hyperfine** | `time ./script.sh` (benchmark) |
-| `watch` | **hwatch** | `watch ls` (records history) |
-| `dig` | **doggo** | `dig google.com` (colorful DNS) |
-| `make` | **just** | `make build` (running Justfile commands) |
-| `ping` | **gping** | `ping google.com` (Graphical ping) |
-| `curl` / `http` | **xh** | `http google.com`, `curl postman-echo.com/get` |
-| `calc` / `bc` | **fend** | `calc "10 miles to km"`, `bc "sin(pi/2)"` |
+| `time` | **hyperfine** | `time ./script.sh` |
+| `watch` | **hwatch** | `watch ls` |
+| `dig` | **doggo** | `dig google.com` |
+| `make` | **just** | `make build` |
+| `ping` | **gping** | `ping google.com` |
+| `curl` / `http` | **xh** | `http google.com` |
+| `calc` / `bc` | **fend** | `calc "10 miles to km"` |
 
 ---
 
@@ -61,9 +61,9 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 
 | Command | Description | Examples |
 | :--- | :--- | :--- |
-| `set` | Set environment variable or list all | `set KEY VALUE`, `set KEY=VALUE`, `set` |
+| `set` | Set environment variable or list all | `set KEY VALUE` |
 | `unset` | Remove environment variable | `unset GREETING` |
-| `path` | Smart management of $PATH | `path add /bin`, `path prepend ./node_modules/.bin` |
+| `path` | Smart management of $PATH | `path add /bin` |
 | `pushd` | Save current dir and move | `pushd /tmp` |
 | `popd` | Return to saved dir | `popd` |
 | `dirs` | Show directory stack | `dirs` |
@@ -77,8 +77,25 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 | `ai ask` | Ask any coding or terminal question | `ai ask "how to list large files?"` |
 | `ai fix` | Fix the last failed command automatically | `ai fix` |
 | `ai search` | Semantic history search (uses embeddings) | `ai search "git log from yesterday"` |
+| `ai browse` | Browse and summarize a webpage in sidebar | `ai browse https://rust-lang.org` |
+| `ai chat` | Open a persistent AI chat sidebar | `ai chat` |
 | `ai status` | Check Ollama and model health | `ai status` |
 | `ai setup` | Global onboarding (Install model + power-ups) | `ai setup` |
+
+---
+
+## 🌊 Rio Terminal Control
+
+| Command | Description | Examples |
+| :--- | :--- | :--- |
+| `rio notify` | Send a native macOS notification | `rio notify "Done" "Build finished"` |
+| `rio opacity` | Adjust terminal transparency (0.0-1.0) | `rio opacity 0.8` |
+| `rio badge` | Set a text badge on the current tab | `rio badge DEV` |
+| `history toggle` | Toggle the "Holographic History" timeline | `history toggle on` |
+| `minimap` | Toggle scrollback mini-map overlay | `minimap off` |
+| `effect` | Trigger GPU background shaders | `effect matrix`, `effect vibe`, `effect none` |
+| `progress` | Render a native GPU progress bar | `progress 0.5 "Loading..."` |
+| `voice setup` | Setup Metal-accelerated voice control | `voice setup` |
 
 ---
 
@@ -86,10 +103,10 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 
 | Command | Description | Examples |
 | :--- | :--- | :--- |
-| `macro set` | Create a logical shortcut with args ($1, $) | `macro set ll ls -la` |
+| `macro set` | Create a shortcut with args ($1, $) | `macro set ll ls -la` |
 | `macro unset` | Remove a saved macro | `macro unset ll` |
 | `macro` | List all active macros | `macro` |
-| `abbr` | Create a "Fish-style" visual expansion | `abbr gco git checkout` |
+| `abbr` | Create a visual expansion shortcut | `abbr gco git checkout` |
 
 ---
 
@@ -101,7 +118,6 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 | `chev uninstall` | Wipe EVERYTHING (tools, configs, link) | `chev uninstall` |
 | `chev cleanup` | Reset history, suggestions, and macros | `chev cleanup` |
 | `chev build` | Recompile shell from current source | `chev build` |
-| `chev setup` | Setup advice and environment check | `chev setup` |
 
 ---
 
@@ -114,9 +130,3 @@ Welcome to the **Chev Shell** v0.1.0-alpha. Below is a list of common commands y
 | `fg <id>` | Bring job to foreground | `fg 1` |
 | `bg <id>` | Resume job in background | `bg 2` |
 | `Ctrl+Z` | Suspend foreground task | (Keyboard shortcut) |
-
----
-
-## 🛰️ Modern Advanced
-
-*Note: Commands in **bold** or modern alternatives are automatically executed for a 10x faster experience.*

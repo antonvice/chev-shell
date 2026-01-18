@@ -1,14 +1,10 @@
 # 🐕 Chev Shell (chev-shell)
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/logos/exports/154x154_circle.png" width="100" />
-</p>
+![Chev Shell Logo](https://raw.githubusercontent.com/catppuccin/catppuccin/main/assets/logos/exports/154x154_circle.png)
 
-<h3 align="center">The AI-Native, Rust-Powered Command Line for the Modern Age</h3>
+## The AI-Native, Rust-Powered Command Line for the Modern Age
 
-<p align="center">
-  <strong>Chev Shell</strong> is not just another shell. It's a high-performance, GPU-accelerated co-processor for your terminal that redefines how you interact with your operating system. Built entirely in Rust, it merges the reliability of classic POSIX shells with the intelligence of modern AI.
-</p>
+**Chev Shell** is not just another shell. It's a high-performance, GPU-accelerated co-processor for your terminal that redefines how you interact with your operating system. Built entirely in Rust, it merges the reliability of classic POSIX shells with the intelligence of modern AI.
 
 ---
 
@@ -19,74 +15,97 @@ Most shells stay out of your way. **Chev** works *with* you. It is designed to b
 ### 🚀 Novel Features
 
 #### 1. **Modern-First Command Mapping**
+
 Chev transparently "upgrades" your legacy POSIX commands to their modern, multi-threaded, and colorful Rust-based counterparts. You don't need to configure aliases; Chev does it by default:
+
 - `ls` ⮕ `eza`
-- `cat` ⮕ `bat`
+- `cat` ⮕ `bat` / `mdcat`
 - `find` ⮕ `fd`
 - `top` ⮕ `btm`
 - `man` ⮕ `tldr`
 - *...and [many more](commands.md).*
 
 #### 2. **AI-Native Core**
-Built-in bridge to local LLMs (via Ollama). Chev is designed to explain complex flags, suggest command corrections, and generate one-liners using models like `qwen2.5-coder:7b`, all while keeping your data local and private.
 
-#### 3. **Smart Semantic Navigation**
-The `cd` command is powered by `zoxide` logic. It learns your habits, allowing you to "jump" to frequently used directories without typing full paths (e.g., `cd proj` might take you straight to `~/Documents/work/rust/project-alpha`).
+Built-in bridge to local LLMs (via Ollama). Chev can explain complex flags, suggest command corrections, perform semantic history searches, and even browse the web for you—all while keeping your data local and private.
 
-#### 4. **Intelligent Auto-suggestions**
-Leverages a high-performance **Trie-based engine** to provide ghost-text suggestions from your history. Accept suggestions instantly with `Tab` or `Right Arrow`.
+#### 3. **Rio Deep Integration**
 
-#### 5. **Advanced Macro & Abbreviation Engine**
-Support for Fish-style abbreviations and powerful macros with argument expansion (`$1`, `$@`, etc.), allowing you to build complex workflows that feel like native commands.
+Designed specifically for the **Rio Terminal**. Chev uses custom OSC sequences to trigger native UI events like notifications, split-panes (IDE mode), background effects (Matrix/Vibe), and macOS QuickLook previews.
 
-#### 6. **Robust Job Control**
-Modernized job management that tracks "Active For" time for background processes, with native `fg`, `bg`, and `jobs` implementation built on Nix.
+#### 4. **Semantic History (Mimic)**
+
+Every command you run is embedded and stored in a local vector database (LanceDB). Find how you did something yesterday using natural language: `ai search "how did I connect to s3?"`.
+
+#### 5. **Advanced UX**
+
+- **Fish-style Autosuggestions**: Gray-text completion based on history.
+- **Smart Macros**: Argument expansion ($1, $2, $) for complex workflows.
+- **Visual Blocks**: OSC 133 support for traceable command blocks.
 
 ---
 
-## 🛠 Installation
+## 🛠 Setup & Installation
 
 ### Prerequisites
-Chev expects several modern Rust tools to be installed on your system for the full experience:
-```bash
-cargo install eza bat fd-find bottom tealdeer zoxide xcp ripgrep sd
-```
 
-### Build from Source
+1. **Ollama**: [Download here](https://ollama.com) (Required for AI features).
+2. **Protobuf**: `brew install protobuf` (Required for LanceDB).
+3. **Rio Terminal**: [Download here](https://rioterm.com).
+
+### 🚀 Getting Started
+
+Once you have the prerequisites, follow these steps to build and initialize your workspace:
+
 ```bash
+# 1. Clone the repository
 git clone https://github.com/antonvice/chev-shell.git
 cd chev-shell/chev-shell
+
+# 2. Build the shell
 cargo build --release
+
+# 3. Enter the shell
+./target/release/chev
+
+# 4. Global Setup (Inside Chev)
+# This installs all modern Rust tools and pulls the AI model
+ai setup
 ```
 
 ---
 
 ## 🗺 Roadmap
 
-- [ ] **Phase 1: Foundations (Current)**
-  - [x] Rust-based execution engine
-  - [x] Transparent tool mapping
-  - [x] Basic job control & environment management
-  - [x] Trie-based suggestions
+- [x] **Phase 1: Foundations**
+  - [x] Rust-based execution engine & Job Control
+  - [x] Lexer & Parser (nom) with Pipes and Redirection
+  - [x] Transparent tool mapping (ls -> eza, etc.)
+  - [x] Environment management & Directory stack (pushd/popd)
 
-- [ ] **Phase 2: Intelligence**
-  - [ ] Deep integration with Ollama for command explanation
-  - [ ] `ctrl-f` (Find AI) to search history semantically
-  - [ ] Natural language to CLI (e.g., `? find all large logs`)
+- [x] **Phase 2: Intelligence**
+  - [x] Ollama bridge (qwen2.5-coder:7b)
+  - [x] `ai ask` & `ai fix` (Proactive error correction)
+  - [x] `ai search` (Semantic history via LanceDB)
+  - [x] `ai browse` (Web summarization in sidebar)
 
-- [ ] **Phase 3: Visual & UX**
-  - [ ] GPU-accelerated UI rendering components
-  - [ ] Interactive file picker (`fselect` / `broot` integration)
-  - [ ] Custom theme engine (Catppuccin by default)
+- [x] **Phase 3: Visual & Rio Integration**
+  - [x] Custom OSC 1338 Protocol
+  - [x] IDE Mode (Split-pane broot integration)
+  - [x] Native macOS QuickLook (`preview`)
+  - [x] Holographic History & Background Shaders (Matrix/Vibe)
 
-- [ ] **Phase 4: Ecosystem**
-  - [ ] Plugin system (WASM or Rust)
-  - [ ] Cross-platform parity (Full Windows support)
+- [ ] **Phase 4: Future Tech**
+  - [ ] GPU Grep (WebGPU offloading)
+  - [ ] `yt-term` (Terminal Video streaming)
+  - [ ] WASM Plugin System
+  - [ ] Cross-platform parity
 
 ---
 
 ## 📖 Documentation
 - [Command Reference](commands.md) - Full list of mappings and built-ins.
+- [Dev Guide](../guide.md) - Technical specification and architecture.
 
 ## 🐕 Behind the Name
 The shell is named after my girlfriend, **Chev**—designed to be as elegant, smart, and reliable as she is.
@@ -94,3 +113,4 @@ The shell is named after my girlfriend, **Chev**—designed to be as elegant, sm
 ---
 
 <p align="center">Built with 🦀 and ❤️ by <a href="https://github.com/antonvice">Anton Vice</a></p>
+
