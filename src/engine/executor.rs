@@ -646,7 +646,14 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
         // Note: Built-ins don't usually pipe well in simple implementations, 
         // but we'll support cd as a special case.
         if original_command == "cd" && commands_len == 1 {
-            return handle_cd(cmd.args.iter().skip(1).map(|s| s.as_str()).collect(), env_mutex).await;
+            let start = std::time::Instant::now();
+            let res = handle_cd(cmd.args.iter().skip(1).map(|s| s.as_str()).collect(), env_mutex).await;
+            crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::HistoryAdd {
+                command: full_cmd_str.clone(),
+                status: if res.is_ok() { 0 } else { 1 },
+                duration: start.elapsed().as_secs_f32(),
+            });
+            return res;
         }
 
         if original_command == "preview" && commands_len == 1 {
@@ -695,6 +702,15 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
         if original_command == "vibe" && commands_len == 1 {
              crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::BackgroundEffect(Some("vibe".to_string())));
              return Ok(());
+        }
+
+        if original_command == "history" && commands_len == 1 {
+            let on = match cmd.args.get(1).map(|s| s.as_str()) {
+                Some("off") | Some("0") => false,
+                _ => true,
+            };
+            crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::ToggleHistory(on));
+            return Ok(());
         }
 
         if original_command == "voice" {
@@ -853,6 +869,7 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
         }
 
         if is_last {
+            let start_time = std::time::Instant::now();
             let captured_stderr = Arc::new(Mutex::new(String::new()));
             let stderr_capture = Arc::clone(&captured_stderr);
             
@@ -927,10 +944,17 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                 }
             };
 
-            // Wait for stderr task to complete (it should finish shortly after process exits)
             if let Some(task) = stderr_task {
                 let _ = task.await;
             }
+
+            let duration = start_time.elapsed().as_secs_f32();
+            let exit_code = if status.is_ok() { 0 } else { 1 };
+            crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::HistoryAdd {
+                command: full_cmd_str.clone(),
+                status: exit_code,
+                duration,
+            });
 
             let final_stderr = captured_stderr.lock().unwrap().clone();
 

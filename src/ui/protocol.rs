@@ -13,6 +13,8 @@ pub enum RioAction {
     Edit(String),
     RequestHistory,
     Spectrum(Vec<f32>),
+    ToggleHistory(bool),
+    HistoryAdd { command: String, status: i32, duration: f32 },
 }
 
 pub fn send_rio(action: RioAction) {
@@ -55,6 +57,13 @@ pub fn send_rio(action: RioAction) {
         RioAction::Spectrum(data) => {
             let data_str = data.iter().map(|f| format!("{:.2}", f)).collect::<Vec<String>>().join(",");
             format!("\x1b]1338;spectrum;{}\x07", data_str)
+        }
+        RioAction::ToggleHistory(enabled) => {
+            let val = if enabled { "1" } else { "0" };
+            format!("\x1b]1338;history-toggle;{}\x07", val)
+        }
+        RioAction::HistoryAdd { command, status, duration } => {
+            format!("\x1b]1338;history-add;{};{};{:.2}\x07", command, status, duration)
         }
     };
     print!("{}", sequence);
