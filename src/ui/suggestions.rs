@@ -124,14 +124,18 @@ pub struct ShellHelper {
     pub trie: CommandTrie,
     pub macro_manager: std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>,
     pub ghost_state: std::sync::Arc<std::sync::Mutex<GhostState>>,
+    pub prompt_parts: crate::ui::prompt::PromptParts,
+    pub semantic_active: bool,
 }
 
 impl ShellHelper {
-    pub fn new(macro_manager: std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>, ghost_state: std::sync::Arc<std::sync::Mutex<GhostState>>) -> Self {
+    pub fn new(macro_manager: std::sync::Arc<std::sync::Mutex<crate::engine::macros::MacroManager>>, ghost_state: std::sync::Arc<std::sync::Mutex<GhostState>>, semantic_active: bool) -> Self {
         Self { 
             trie: CommandTrie::new(),
             macro_manager,
             ghost_state,
+            prompt_parts: crate::ui::prompt::PromptParts::default(),
+            semantic_active,
         }
     }
 }
@@ -197,6 +201,14 @@ impl Highlighter for ShellHelper {
         if hint.is_empty() { return Cow::Borrowed(hint); }
         // Ghost text in Dim Gray
         Cow::Owned(format!("\x1b[90m{}\x1b[0m", hint))
+    }
+
+    fn highlight_prompt<'b, 's: 'b, 'p: 'b>(
+        &'s self,
+        _prompt: &'p str,
+        _default: bool,
+    ) -> Cow<'b, str> {
+        Cow::Owned(self.prompt_parts.to_colored_string(self.semantic_active))
     }
 }
 

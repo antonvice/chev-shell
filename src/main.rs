@@ -1,5 +1,6 @@
+use std::io::Write;
 use rustyline::error::ReadlineError;
-use rustyline::{Cmd, KeyEvent, KeyCode, Modifiers, Movement};
+use rustyline::{Cmd, KeyEvent, KeyCode, Modifiers, Movement, Word, At};
 use clap::Parser;
 
 use std::sync::{Arc, Mutex};
@@ -208,8 +209,8 @@ async fn main() -> anyhow::Result<()> {
     
     // Detect Semantic Support (OSC 133)
     let term = std::env::var("TERM_PROGRAM").unwrap_or_default();
-    let semantic_active = match term.as_str() {
-        "Rio" | "WezTerm" | "Ghostty" | "Warp" => true,
+    let semantic_active = match term.to_lowercase().as_str() {
+        "rio" | "wezterm" | "ghostty" | "warp" => true,
         _ => false,
     };
 
@@ -231,6 +232,7 @@ async fn main() -> anyhow::Result<()> {
     let ghost_state_clone = Arc::clone(&ghost_state);
     let _algo_jobs = Arc::clone(&jobs); // Jobs manager available if needed context
     let _algo_env = Arc::clone(&env_manager);
+    let semantic_active_clone = semantic_active;
     tokio::spawn(async move {
         let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(200));
         let model_name = std::env::var("OLLAMA_MODEL").unwrap_or_else(|_| "qwen2.5-coder:7b".to_string());
@@ -256,8 +258,6 @@ async fn main() -> anyhow::Result<()> {
             
             if should_trigger {
                 // Generate suggestion
-                // Simulate Context Awareness
-                 // In a real implementation this would check file context
                  let suggestion = chev_shell::ai::mimic::generate_ghost_suggestion(&model_name, &buffer).await;
 
                  if let Some(sugg) = suggestion {
@@ -265,10 +265,12 @@ async fn main() -> anyhow::Result<()> {
                          // Double check we haven't typed in the meantime
                          if state.current_buffer == buffer {
                             state.ghost_text = Some(sugg.clone());
-                            use std::io::Write;
-                            // Send side-channel command
-                            print!("\x1b]1338;ghost;{}\x07", sugg);
-                            let _ = std::io::stdout().flush();
+                            if semantic_active_clone {
+                                use std::io::Write;
+                                // Send side-channel command
+                                print!("\x1b]1338;ghost;{}\x07", sugg);
+                                let _ = std::io::stdout().flush();
+                            }
                          }
                      }
                  }
@@ -277,11 +279,17 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let mut rl = rustyline::Editor::<ui::suggestions::ShellHelper, rustyline::history::FileHistory>::new()?;
-    rl.set_helper(Some(ui::suggestions::ShellHelper::new(Arc::clone(&macro_manager), Arc::clone(&ghost_state))));
+    rl.set_helper(Some(ui::suggestions::ShellHelper::new(Arc::clone(&macro_manager), Arc::clone(&ghost_state), semantic_active)));
 
     // Key Bindings: Accept hint with Tab or Right Arrow
     rl.bind_sequence(KeyEvent(KeyCode::Tab, Modifiers::NONE), Cmd::Complete);
     rl.bind_sequence(KeyEvent(KeyCode::Right, Modifiers::NONE), Cmd::Move(Movement::EndOfLine));
+    
+    // Additional bindings for Mac-like behavior
+    rl.bind_sequence(KeyEvent(KeyCode::Left, Modifiers::ALT), Cmd::Move(Movement::BackwardWord(1, Word::Emacs)));
+    rl.bind_sequence(KeyEvent(KeyCode::Right, Modifiers::ALT), Cmd::Move(Movement::ForwardWord(1, At::AfterEnd, Word::Emacs)));
+    // Also support Control+U as a fallback for delete line
+    rl.bind_sequence(KeyEvent(KeyCode::Char('u'), Modifiers::CTRL), Cmd::Kill(Movement::BeginningOfLine));
 
     let home = dirs::home_dir().expect("Home dir not found");
     let chev_dir = home.join(".chev");
@@ -298,9 +306,19 @@ async fn main() -> anyhow::Result<()> {
 
     loop {
         ui::prompt::pre_prompt();
-        let prompt = ui::prompt::get_prompt();
+        let prompt_parts = ui::prompt::get_prompt_parts();
+        if let Some(helper) = rl.helper_mut() {
+            helper.prompt_parts = prompt_parts.clone();
+        }
+        let prompt = prompt_parts.to_plain_string();
         
         let readline = rl.readline(&prompt);
+        
+        // Mark Command Start after prompt ends (semantic)
+        if semantic_active {
+            print!("\x1b]133;C\x07"); 
+            let _ = std::io::stdout().flush();
+        }
         match readline {
             Ok(line) => {
                 let input = line.trim();
@@ -323,25 +341,26 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
 
-                // Semantic: Output Start
-                println!("\x1b]133;C\x07");
-
                 // Execute via our engine
                 let result = engine::executor::execute_command(input, &jobs, &env_manager, &macro_manager).await;
                 
                 // Semantic: Block End (assuming exit code 0 on success, 1 on error for now)
-                let exit_code = if result.is_ok() { 0 } else { 1 };
-                println!("\x1b]133;D;{}\x07", exit_code);
+                if semantic_active {
+                    let exit_code = if result.is_ok() { 0 } else { 1 };
+                    println!("\x1b]133;D;{}\x07", exit_code);
+                }
 
                 if let Err(e) = result {
                     eprintln!("Chev Error: {}", e);
                 }
             }
             Err(ReadlineError::Interrupted) => {
+                if semantic_active { println!("\x1b]133;D;1\x07"); }
                 println!("SIGINT");
                 continue;
             }
             Err(ReadlineError::Eof) => {
+                if semantic_active { println!("\x1b]133;D\x07"); }
                 println!("Exiting...");
                 // Terminate all active jobs
                 {

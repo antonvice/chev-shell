@@ -390,6 +390,11 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                                                 let mut macros = macro_mutex.lock().unwrap();
                                                 macros.last_suggestion = Some(results[0].clone());
                                                 println!("{}💡 Hit Tab to use the top match.{}", gray, reset);
+                                                
+                                                crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Notify { 
+                                                    title: "Search Complete".to_string(), 
+                                                    message: format!("Found {} matches for '{}'", results.len(), query) 
+                                                });
                                             }
                                         }
                                         Err(e) => eprintln!("{}❌ Search error:{} {}", teal, reset, e),
@@ -442,10 +447,10 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             println!("\n{}📦 Checking Modern Tooling...{}", blue, reset);
                             let tools = vec![
                                 ("eza", "eza"), ("zoxide", "zoxide"), ("fd-find", "fd"),
-                                ("dust", "du-dust"), ("rip-bin", "rm-rip"), ("xcp", "xcp"),
+                                ("du-dust", "dust"), ("rip-bin", "rip"), ("xcp", "xcp"),
                                 ("broot", "broot"), ("lfs", "lfs"), ("miniserve", "miniserve"),
                                 ("bat", "bat"), ("mdcat", "mdcat"), ("ripgrep", "rg"),
-                                ("sd", "sd"), ("delta", "git-delta"), ("jql", "jql"),
+                                ("sd", "sd"), ("git-delta", "delta"), ("jql", "jql"),
                                 ("qsv", "qsv"), ("tealdeer", "tldr"), ("heh", "heh"),
                                 ("lemmeknow", "lemmeknow"), ("kibi", "kibi"), ("bottom", "btm"),
                                 ("procs", "procs"), ("hyperfine", "hyperfine"), ("just", "just"),
@@ -981,6 +986,10 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             if let Some(fixed) = json["fixed_command"].as_str() {
                                 let mut m = macros_for_ai.lock().unwrap();
                                 m.last_suggestion = Some(fixed.to_string());
+                                crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::Notify { 
+                                    title: "AI Fix Ready".to_string(), 
+                                    message: format!("Fixed command: {}", fixed) 
+                                });
                             }
                         }
                     }

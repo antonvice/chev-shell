@@ -2,6 +2,41 @@ use std::io::Write;
 use std::process::Command;
 use std::path::Path;
 
+#[derive(Clone, Default)]
+pub struct PromptParts {
+    pub user: String,
+    pub hostname: String,
+    pub path: String,
+    pub git: String,
+}
+
+impl PromptParts {
+    pub fn to_plain_string(&self) -> String {
+        let git_text = if self.git.is_empty() { String::new() } else { format!("({}) ", self.git) };
+        format!("🐚 {}@{} {} {}> ", self.user, self.hostname, self.path, git_text)
+    }
+
+    pub fn to_colored_string(&self, semantic: bool) -> String {
+        let p_start = if semantic { "\x01\x1b]133;A\x07\x02" } else { "" };
+        let c_start = if semantic { "\x01\x1b]133;B\x07\x02" } else { "" };
+        
+        let teal = "\x01\x1b[38;2;110;209;195m\x02";
+        let gray = "\x01\x1b[90m\x02";
+        let reset = "\x01\x1b[0m\x02";
+        let bold_teal = "\x01\x1b[1;38;2;110;209;195m\x02";
+
+        let user_host = format!("{}{}@{}{}{}", teal, self.user, gray, self.hostname, reset);
+        let path_str = format!("{}{}{}", bold_teal, self.path, reset);
+        let git_text = if self.git.is_empty() { 
+            String::new() 
+        } else { 
+            format!("{}({}){} ", gray, self.git, reset) 
+        };
+
+        format!("{}{} {} {} {}{}{}{} {}", p_start, "🐚", user_host, path_str, git_text, teal, ">", reset, c_start)
+    }
+}
+
 pub fn pre_prompt() {
     // Set Cursor Style & Color
     // \x1b[6 q  -> Blinking Bar (I-Beam) - Note: Google says 5 is Steady Bar, 6 is Blinking Bar
@@ -10,7 +45,7 @@ pub fn pre_prompt() {
     std::io::stdout().flush().ok();
 }
 
-pub fn get_prompt() -> String {
+pub fn get_prompt_parts() -> PromptParts {
     let current_dir = std::env::current_dir().unwrap_or_default();
     let home = dirs::home_dir().unwrap_or_default();
     let display_path = shorten_path(&current_dir, &home);
@@ -21,37 +56,18 @@ pub fn get_prompt() -> String {
     };
     
     let user = std::env::var("USER").unwrap_or_else(|_| "user".into());
-
     let git_section = get_git_info().unwrap_or_default();
 
-    let shell_icon = "🐚"; 
-    
-    // User (Teal) @ (Gray) Host (Gray)
-    let user_host = format!(
-        "\x01\x1b[38;2;110;209;195m\x02{}\x01\x1b[90m\x02@{}\x01\x1b[0m\x02 ", 
-        user, hostname
-    );
+    PromptParts {
+        user,
+        hostname,
+        path: display_path,
+        git: git_section,
+    }
+}
 
-    // Path (Teal, Bold)
-    let path_str = format!("\x01\x1b[1;38;2;110;209;195m\x02{}\x01\x1b[0m\x02 ", display_path);
-    
-    // Arrow (Teal)
-    let arrow = "\x01\x1b[38;2;110;209;195m\x02>\x01\x1b[0m\x02";
-
-    // Semantic Block Markers (OSC 133)
-    let prompt_start = "\x1b]133;A\x07";
-    let command_start = "\x1b]133;B\x07";
-
-    format!(
-        "{}{} {}{}{}{} {}",
-        prompt_start,
-        shell_icon,
-        user_host,
-        path_str,
-        git_section,
-        arrow,
-        command_start
-    )
+pub fn get_prompt() -> String {
+    get_prompt_parts().to_plain_string()
 }
 
 fn get_hostname() -> Option<String> {
@@ -80,7 +96,7 @@ fn get_git_info() -> Option<String> {
     let dirty_marker = if is_dirty { "*" } else { "" };
     
     // Format: (branch_name*) 
-    Some(format!("{}({}{}){}{}", gray, branch_name, dirty_marker, reset, " "))
+    Some(format!("{}({}{}){}", gray, branch_name, dirty_marker, reset))
 }
 
 fn shorten_path(path: &Path, home: &Path) -> String {

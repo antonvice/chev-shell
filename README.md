@@ -55,22 +55,30 @@ Every command you run is embedded and stored in a local vector database (LanceDB
 
 ### 🚀 Getting Started
 
-Once you have the prerequisites, follow these steps to build and initialize your workspace:
+Once you have the prerequisites, follow these steps to build and initialize your workspace using the unified **Root Makefile**:
 
 ```bash
 # 1. Clone the repository
 git clone https://github.com/antonvice/chev-shell.git
-cd chev-shell/chev-shell
+cd chev-shell
 
-# 2. Build the shell
-cargo build --release
+# 2. Build both Shell and Terminal with one command
+make build
 
-# 3. Enter the shell
+# 3. Enter the shell (from the chev-shell directory)
+cd chev-shell
 ./target/release/chev
 
 # 4. Global Setup (Inside Chev)
 # This installs all modern Rust tools and pulls the AI model
 ai setup
+```
+
+To package everything into a single **Rio.app** (macOS) that includes the Chev binary:
+
+```bash
+# Return to root and run release
+make release-macos
 ```
 
 ---
@@ -104,13 +112,14 @@ ai setup
 ---
 
 ## 📖 Documentation
+
 - [Command Reference](commands.md) - Full list of mappings and built-ins.
 - [Dev Guide](../guide.md) - Technical specification and architecture.
 
 ## 🐕 Behind the Name
+
 The shell is named after my girlfriend, **Chev**—designed to be as elegant, smart, and reliable as she is.
 
 ---
 
-<p align="center">Built with 🦀 and ❤️ by <a href="https://github.com/antonvice">Anton Vice</a></p>
-
+Built with 🦀 and ❤️ by [Anton Vice](https://github.com/antonvice)
