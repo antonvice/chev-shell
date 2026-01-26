@@ -305,7 +305,6 @@ async fn main() -> anyhow::Result<()> {
     }
 
     loop {
-        ui::prompt::pre_prompt();
         let prompt_parts = ui::prompt::get_prompt_parts();
         if let Some(helper) = rl.helper_mut() {
             helper.prompt_parts = prompt_parts.clone();
@@ -351,7 +350,13 @@ async fn main() -> anyhow::Result<()> {
                 }
 
                 if let Err(e) = result {
-                    eprintln!("Chev Error: {}", e);
+                    let err_str = e.to_string();
+                    if err_str.contains("os error 2") {
+                         eprintln!("\x1b[31m❌ Command not found: {}\x1b[0m", input.split_whitespace().next().unwrap_or(""));
+                         eprintln!("\x1b[90m   Tip: Ask AI with 'ai ask \"{}\"'\x1b[0m", input);
+                    } else {
+                        eprintln!("\x1b[31mChev Error: {}\x1b[0m", e);
+                    }
                 }
             }
             Err(ReadlineError::Interrupted) => {

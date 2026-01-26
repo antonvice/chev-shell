@@ -1,4 +1,4 @@
-use std::io::Write;
+
 use std::process::Command;
 use std::path::Path;
 
@@ -17,9 +17,13 @@ impl PromptParts {
     }
 
     pub fn to_colored_string(&self, semantic: bool) -> String {
+        // Semantic markers (wrapped in \x01..\x02 for readline invisible char counting)
         let p_start = if semantic { "\x01\x1b]133;A\x07\x02" } else { "" };
         let c_start = if semantic { "\x01\x1b]133;B\x07\x02" } else { "" };
         
+        // Cursor styling (Blinking Bar + Teal Color) - Wrapped as invisible
+        let cursor_style = "\x01\x1b[6 q\x1b]12;#6ED1C3\x07\x02";
+
         let teal = "\x01\x1b[38;2;110;209;195m\x02";
         let gray = "\x01\x1b[90m\x02";
         let reset = "\x01\x1b[0m\x02";
@@ -34,9 +38,10 @@ impl PromptParts {
             String::new() 
         };
 
-        // Construct: [Start]🐚 [User@Host] [Path][Git] [>][Space][Reset][CmdStart]
-        // Explicitly managing spaces to ensure no "double space" or "gap" issues
-        format!("{}{} {} {}{}{}{} {}{}", 
+        // Construct: [CursorStyle][P_Start]🐚 [User@Host] [Path][Git] [Teal]>[Reset] [C_Start]
+        // We ensure 'Reset' happens before the final space, separating prompt styling from input.
+        format!("{}{}{}{} {} {}{}{}{}{}", 
+            cursor_style,
             p_start, 
             "🐚", 
             user_host, 
@@ -48,14 +53,6 @@ impl PromptParts {
             c_start
         )
     }
-}
-
-pub fn pre_prompt() {
-    // Set Cursor Style & Color
-    // \x1b[6 q  -> Blinking Bar (I-Beam) - Note: Google says 5 is Steady Bar, 6 is Blinking Bar
-    // \x1b]12;... -> Set cursor color to #6ED1C3
-    print!("\x1b[6 q\x1b]12;#6ED1C3\x07"); 
-    std::io::stdout().flush().ok();
 }
 
 pub fn get_prompt_parts() -> PromptParts {
