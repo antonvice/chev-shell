@@ -16,14 +16,19 @@ impl PromptParts {
         format!("🐚 {}@{} {} {}> ", self.user, self.hostname, self.path, git_text)
     }
 
-    pub fn to_colored_string(&self, semantic: bool) -> String {
-        // Semantic markers (wrapped in \x01..\x02 for readline invisible char counting)
-        let p_start = if semantic { "\x01\x1b]133;A\x07\x02" } else { "" };
-        let c_start = if semantic { "\x01\x1b]133;B\x07\x02" } else { "" };
+    pub fn to_colored_string(&self, semantic: bool) -> (String, String) {
+        // 1. Pre-print Sequence (Direct to Stdout, not managed by Readline)
+        // Includes: Cursor Style + OSC 133 A (Prompt Start)
+        let mut pre_sequence = String::from("\x1b[6 q\x1b]12;#6ED1C3\x07"); // Cursor Style
         
-        // Cursor styling (Blinking Bar + Teal Color) - Wrapped as invisible
-        let cursor_style = "\x01\x1b[6 q\x1b]12;#6ED1C3\x07\x02";
+        if semantic {
+            let context_str = format!("{}@{}:{}", self.user, self.hostname, self.path);
+            pre_sequence.push_str(&format!("\x1b]133;A;context={}\x07", context_str));
+        }
 
+        // 2. Visible Prompt (Managed by Readline)
+        // Includes: Visible text + Colors (wrapped in \x01..\x02) + Command Start (OSC 133 B)
+        let c_start = if semantic { "\x01\x1b]133;B\x07\x02" } else { "" };
         let teal = "\x01\x1b[38;2;110;209;195m\x02";
         let gray = "\x01\x1b[90m\x02";
         let reset = "\x01\x1b[0m\x02";
@@ -38,11 +43,7 @@ impl PromptParts {
             String::new() 
         };
 
-        // Construct: [CursorStyle][P_Start]🐚 [User@Host] [Path][Git] [Teal]>[Reset] [C_Start]
-        // We ensure 'Reset' happens before the final space, separating prompt styling from input.
-        format!("{}{}{}{} {} {}{}{}{}{}", 
-            cursor_style,
-            p_start, 
+        let visible_prompt = format!("{} {} {}{}{}{}{}{}", 
             "🐚", 
             user_host, 
             path_str, 
@@ -51,7 +52,9 @@ impl PromptParts {
             ">",
             reset,
             c_start
-        )
+        );
+        
+        (pre_sequence, visible_prompt)
     }
 }
 

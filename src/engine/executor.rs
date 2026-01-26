@@ -22,8 +22,19 @@ pub async fn execute_command(input: &str, jobs: &Arc<Mutex<JobManager>>, env_man
     let (_, pipeline) = parse_pipeline(&expanded)
         .map_err(|e| anyhow!("Parse error: {}", e))?;
 
+    // Start Output Block (OSC 133;C)
+    print!("\x1b]133;C\x07");
+    
     let result = execute_pipeline(pipeline, jobs, env_manager, macro_manager).await;
     
+    // End Output Block (OSC 133;D;{code})
+    let exit_code = match &result {
+        Ok(_) => 0,
+        Err(_) => 1,
+    };
+    print!("\x1b]133;D;{}\x07", exit_code);
+
+    /* AI Auto-Fix Disabled by User Request
     if let Err(e) = &result {
         // If the command failed, trigger an AI fix analysis
         let last_cmd = expanded.clone();
@@ -60,6 +71,7 @@ pub async fn execute_command(input: &str, jobs: &Arc<Mutex<JobManager>>, env_man
             }
         });
     }
+    */
 
     result
 }
@@ -469,13 +481,19 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             for (crate_name, bin_name) in tools {
                                 if which::which(bin_name).is_err() {
                                     println!("{}⏳ Installing {}...{}", gray, crate_name, reset);
-                                    let status = std::process::Command::new("cargo")
-                                        .arg("install")
+                                    let mut cmd = std::process::Command::new("cargo");
+                                    cmd.arg("install")
                                         .arg("--root")
                                         .arg(&isolated_root)
-                                        .arg(crate_name)
-                                        .stdout(Stdio::null())
-                                        .stderr(Stdio::null())
+                                        .arg(crate_name);
+                                    
+                                    if crate_name == "qsv" {
+                                        cmd.arg("--locked");
+                                    }
+
+                                    let status = cmd
+                                        .stdout(Stdio::inherit())
+                                        .stderr(Stdio::inherit())
                                         .status();
 
                                     if status.is_ok() && status.unwrap().success() {

@@ -1,12 +1,25 @@
 use std::io::{self, Write};
 use crate::ai::OllamaClient;
 use anyhow::Result;
-
 pub async fn run_ai_chat(internal: bool) -> Result<()> {
+    // Wrap the chat loop to catch errors and keep window open
+    if let Err(e) = chat_loop(internal).await {
+        let red = "\x1b[31m";
+        let reset = "\x1b[0m";
+        println!("\n{}❌ AI Chat Crashed: {}{}", red, e, reset);
+        println!("Press Enter to close this window...");
+        let mut buf = String::new();
+        let _ = std::io::stdin().read_line(&mut buf);
+    }
+
+    Ok(())
+}
+
+async fn chat_loop(internal: bool) -> Result<()> {
     let teal = "\x1b[38;2;110;209;195m";
     let reset = "\x1b[0m";
     let gray = "\x1b[90m";
-    
+
     if internal {
         // Clear screen and show a minimal header for sidebar
         print!("\x1b[2J\x1b[H"); 
@@ -28,7 +41,11 @@ pub async fn run_ai_chat(internal: bool) -> Result<()> {
         io::stdout().flush()?;
         
         let mut input = String::new();
-        io::stdin().read_line(&mut input)?;
+        let bytes = io::stdin().read_line(&mut input)?;
+        if bytes == 0 {
+             // EOF detected
+             break; 
+        }
         let input = input.trim();
         
         if input == "/quit" || input == "/exit" {
@@ -84,6 +101,5 @@ pub async fn run_ai_chat(internal: bool) -> Result<()> {
         }
         println!();
     }
-
     Ok(())
 }

@@ -160,9 +160,6 @@ impl Hinter for ShellHelper {
             // Clear previous ghost text on typing
             if state.ghost_text.is_some() {
                 state.ghost_text = None;
-                use std::io::Write;
-                print!("\x1b]1338;ghost;\x07");
-                let _ = std::io::stdout().flush();
             }
             
             // Return ghost text as hidden hint if available
@@ -172,6 +169,8 @@ impl Hinter for ShellHelper {
         }
 
         // 1. Check for AI Suggestions (if line is empty or starts a fix)
+        // AI Autocomplete Disabled by User Request
+        /*
         {
             let macros = self.macro_manager.lock().unwrap();
             if let Some(suggestion) = &macros.last_suggestion {
@@ -180,6 +179,7 @@ impl Hinter for ShellHelper {
                 }
             }
         }
+        */
 
         if line.is_empty() { return None; }
 
@@ -208,7 +208,8 @@ impl Highlighter for ShellHelper {
         _prompt: &'p str,
         _default: bool,
     ) -> Cow<'b, str> {
-        Cow::Owned(self.prompt_parts.to_colored_string(self.semantic_active))
+        let (_, visible) = self.prompt_parts.to_colored_string(self.semantic_active);
+        Cow::Owned(visible)
     }
 }
 

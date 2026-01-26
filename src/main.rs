@@ -309,9 +309,13 @@ async fn main() -> anyhow::Result<()> {
         if let Some(helper) = rl.helper_mut() {
             helper.prompt_parts = prompt_parts.clone();
         }
-        let prompt = prompt_parts.to_colored_string(semantic_active);
+        let (pre_prompt, visible_prompt) = prompt_parts.to_colored_string(semantic_active);
         
-        let readline = rl.readline(&prompt);
+        // Print invisible sequence (OSC 133A, Cursor Shape) *outside* readline to avoid width bugs
+        print!("{}", pre_prompt);
+        let _ = std::io::stdout().flush();
+
+        let readline = rl.readline(&visible_prompt);
         
         // Mark Command Start after prompt ends (semantic)
         if semantic_active {
