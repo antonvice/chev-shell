@@ -38,12 +38,12 @@ impl PromptParts {
         let path_str = format!("{}{}{}", bold_teal, self.path, reset);
         
         let git_part = if !self.git.is_empty() { 
-            format!(" {}({}){}", gray, self.git, reset) 
+            format!("({})", self.git) 
         } else { 
             String::new() 
         };
 
-        let visible_prompt = format!("{} {} {}{}{}{}{}{}", 
+        let visible_prompt = format!("{} {} {} {}{}{}{}{}", 
             "🐚", 
             user_host, 
             path_str, 

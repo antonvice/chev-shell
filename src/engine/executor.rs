@@ -488,7 +488,7 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                                         .arg(crate_name);
                                     
                                     if crate_name == "qsv" {
-                                        cmd.arg("--locked");
+                                        cmd.arg("--locked").arg("--version").arg("14.0.0");
                                     }
 
                                     let status = cmd
