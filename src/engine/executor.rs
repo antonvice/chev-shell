@@ -269,10 +269,15 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             let gray = "\x1b[90m";
                             let reset = "\x1b[0m";
                             println!("{}🐕 Opening AI Chat Sidebar...{}", gray, reset);
+                            
+                            let chev_path = std::env::current_exe()
+                                .map(|p| p.to_string_lossy().to_string())
+                                .unwrap_or_else(|_| "chev".to_string());
+
                             crate::ui::protocol::send_rio(crate::ui::protocol::RioAction::SplitPane { 
                                 direction: "right".to_string(), 
                                 ratio: 0.3, 
-                                command: "chev ai chat --internal".to_string() 
+                                command: format!("{} ai chat --internal", chev_path)
                             });
                         }
                         Some("browse") => {
@@ -375,7 +380,7 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                             let client = crate::ai::OllamaClient::new(model);
                             let mimic = crate::ai::MimicManager::new();
 
-                            match client.embeddings(query).await {
+                            match client.embeddings(query.clone()).await {
                                 Ok(vector) => {
                                     match mimic.search(vector, 5).await {
                                         Ok(results) => {
@@ -454,7 +459,7 @@ async fn execute_pipeline(pipeline: Pipeline, jobs_mutex: &Arc<Mutex<JobManager>
                                 ("qsv", "qsv"), ("tealdeer", "tldr"), ("heh", "heh"),
                                 ("lemmeknow", "lemmeknow"), ("kibi", "kibi"), ("bottom", "btm"),
                                 ("procs", "procs"), ("hyperfine", "hyperfine"), ("just", "just"),
-                                ("hwatch", "hwatch"), ("doggo", "doggo"), ("sudo-rs", "sudo-rs"),
+                                ("hwatch", "hwatch"), ("doggo", "doggo"),
                                 ("gping", "gping"), ("xh", "xh"), ("fend", "fend"), ("ouch", "ouch")
                             ];
 
@@ -1061,7 +1066,7 @@ async fn resolve_command<'a>(command: &'a str, args: Vec<&'a str>) -> Result<(St
         "make" => "just",
         "watch" => "hwatch",
         "dig" => "doggo",
-        "sudo" => "sudo-rs",
+
         "ping" => "gping",
         "http" | "curl" => "xh",
         "calc" | "bc" => "fend",
@@ -1168,7 +1173,7 @@ mod tests {
             ("jq", "jql"),
             ("watch", "hwatch"),
             ("dig", "doggo"),
-            ("sudo", "sudo-rs"),
+
             ("ping", "gping"),
             ("curl", "xh"),
             ("http", "xh"),

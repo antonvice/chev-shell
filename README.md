@@ -43,6 +43,14 @@ Every command you run is embedded and stored in a local vector database (LanceDB
 - **Smart Macros**: Argument expansion ($1, $2, $) for complex workflows.
 - **Visual Blocks**: OSC 133 support for traceable command blocks.
 
+#### 6. **GPU-Accelerated Power**
+
+Chev leverages your hardware to the fullest:
+
+- **Renderer**: Rio uses WebGPU (Metal/Vulkan) for silky smooth 120fps+ text rendering.
+- **AI Inference**: All local LLM operations (Ollama) are offloaded to the GPU/NPU for instant responses.
+- **Visuals**: Semantic blocks and prompt effects are rendered using GPU primitives for zero-latency UI.
+
 ---
 
 ## 🛠 Setup & Installation

@@ -27,13 +27,26 @@ impl PromptParts {
 
         let user_host = format!("{}{}@{}{}{}", teal, self.user, gray, self.hostname, reset);
         let path_str = format!("{}{}{}", bold_teal, self.path, reset);
-        let git_text = if self.git.is_empty() { 
-            String::new() 
+        
+        let git_part = if !self.git.is_empty() { 
+            format!(" {}({}){}", gray, self.git, reset) 
         } else { 
-            format!("{}({}){} ", gray, self.git, reset) 
+            String::new() 
         };
 
-        format!("{}{} {} {} {}{}{}{} {}", p_start, "🐚", user_host, path_str, git_text, teal, ">", reset, c_start)
+        // Construct: [Start]🐚 [User@Host] [Path][Git] [>][Space][Reset][CmdStart]
+        // Explicitly managing spaces to ensure no "double space" or "gap" issues
+        format!("{}{} {} {}{}{}{} {}{}", 
+            p_start, 
+            "🐚", 
+            user_host, 
+            path_str, 
+            git_part, 
+            teal, 
+            ">",
+            reset,
+            c_start
+        )
     }
 }
 

@@ -198,7 +198,7 @@ async fn main() -> anyhow::Result<()> {
         "eza", "zoxide", "fd", "dust", "rip", "xcp", "broot", "lfs", 
         "miniserve", "bat", "mdcat", "rg", "sd", "delta", "jql", "qsv", 
         "tldr", "heh", "lemmeknow", "kibi", "btm", "procs", "hyperfine", 
-        "just", "hwatch", "doggo", "sudo-rs", "gping", "xh", "fend", "ouch"
+        "just", "hwatch", "doggo", "gping", "xh", "fend", "ouch"
     ];
     let installed_count = tools_to_check.iter().filter(|t| which::which(t).is_ok()).count();
     let total_count = tools_to_check.len();
@@ -310,7 +310,7 @@ async fn main() -> anyhow::Result<()> {
         if let Some(helper) = rl.helper_mut() {
             helper.prompt_parts = prompt_parts.clone();
         }
-        let prompt = prompt_parts.to_plain_string();
+        let prompt = prompt_parts.to_colored_string(semantic_active);
         
         let readline = rl.readline(&prompt);
         
